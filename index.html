@@ -28,22 +28,25 @@
       #sub {
         transition: font-size 10s linear, height 10s linear;
       }
+      #sub {
+        transform: translateY(-15%);
+      }
     </style>
   </head>
   <body class="w-full h-[100vh] flex">
     <div
       id="logo"
-      class="absolute flex flex-col gap-5 w-full h-[100vh] justify-center items-center text-white"
+      class="absolute flex flex-col gap-5 w-full h-[100vh] justify-center items-center"
     >
       <div
         id="head"
-        class="w-full h-1/2 flex justify-center items-end text-shadow-local"
+        class="w-full h-1/2 flex justify-center items-end text-shadow-local text-white/80"
       >
         casino
       </div>
       <div
         id="sub"
-        class="whitespace-nowrap w-full h-1/2 flex justify-center items-start"
+        class="whitespace-nowrap w-full h-1/2 flex justify-center items-start text-white/20 uppercase text-sm"
       >
         space travel
       </div>
@@ -62,17 +65,26 @@
     let currentFontIndex = 0;
 
     function changeFonts() {
-      currentFontIndex = (currentFontIndex + 1) % fonts.length;
-
       let headElement = document.getElementById("head");
-      headElement.style.fontFamily = fonts[currentFontIndex];
-      let random1 = Math.floor(Math.random() * (120 - 50 + 200)) + 100;
-      headElement.style.fontSize = random1 + "%"; // Set the font size
+
+      setTimeout(() => {
+        let random1 = Math.floor(Math.random() * (120 - 50 + 200)) + 100;
+        headElement.style.fontFamily =
+          fonts[Math.floor(Math.random() * fonts.length)];
+        headElement.style.fontSize = random1 + "%"; // Set the font size
+      }, 1);
+      setTimeout(() => {
+        let random1 = Math.floor(Math.random() * (120 - 50 + 200)) + 100;
+        headElement.style.fontSize = random1 + "%"; // Set the font size
+      }, 100);
 
       let subElement = document.getElementById("sub");
-      subElement.style.fontFamily = fonts[currentFontIndex + 1];
-      let random2 = Math.floor(Math.random() * (120 - 50 + 1)) + 20;
-      subElement.style.fontSize = random2 + "%"; // Set the font size
+      subElement.style.fontFamily =
+        fonts[Math.floor(Math.random() * fonts.length)];
+      let random2 = Math.floor(Math.random() * 50);
+      setTimeout(() => {
+        subElement.style.fontSize = random2 + "%"; // Set the font size
+      }, 1);
 
       // console.debug("changeFonts() ran");
     }
