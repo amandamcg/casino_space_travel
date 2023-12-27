@@ -1,34 +1,74 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Your Page Title</title>
+    <title>casino_space_travel</title>
+
     <script type="text/javascript">
       // live update
       setInterval(function () {
         window.location.reload();
-      }, 1000);
+      }, 15000);
+
+      // update fonts
+      let fonts = [
+        "Arial",
+        "Verdana",
+        "Times New Roman",
+        "Georgia",
+        "Courier New",
+      ];
+      let currentFontIndex = 0;
+
+      function changeFonts() {
+        let headElement = document.getElementById("head");
+        let subElement = document.getElementById("sub");
+
+        if (headElement) {
+          headElement.style.fontFamily = fonts[currentFontIndex];
+          let randomFontSize = Math.floor(Math.random() * (1200 - 50 + 1)) + 50;
+          headElement.style.fontSize = randomFontSize + "%"; // Set the font size
+        } else {
+          console.error('Element with ID "head" not found.');
+        }
+
+        if (subElement) {
+          subElement.style.fontFamily = fonts[currentFontIndex + 1];
+          let randomFontSize = Math.floor(Math.random() * (1200 - 50 + 1)) + 50;
+          subElement.style.fontSize = randomFontSize + "%"; // Set the font size
+        } else {
+          console.error('Element with ID "sub" not found.');
+        }
+
+        currentFontIndex = (currentFontIndex + 1) % fonts.length;
+        console.log("changeFonts() ran");
+      }
+
+      setInterval(changeFonts, 1000); // Change font every 1000 milliseconds (1 second)
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              clifford: "#aaaaaa",
-            },
-          },
-        },
-      };
-    </script>
+    <style>
+      #head {
+        font-family: Georgia, "Times New Roman", Times, serif, sans-serif; /* Default font */
+      }
+    </style>
   </head>
   <body class="w-full h-full bg-slate-500">
     <div
-      #logo
+      id="logo"
       class="flex flex-col gap-5 w-full h-[100vh] justify-center items-center"
     >
-      <div #main>casino</div>
-      <div #sub>space travel</div>
+      <div
+        id="head"
+        class="w-full h-1/2 flex overflow-hidden justify-center items-center"
+      >
+        casino
+      </div>
+      <div
+        id="sub"
+        class="whitespace-nowrap w-full h-1/2 flex justify-center overflow-hidden items-center"
+      >
+        space travel
+      </div>
     </div>
   </body>
 </html>
@@ -44,7 +84,7 @@
 - [x] need to serve html 
 - [x] live update
 --NEXT 
-- [ ] logo 
+- [x] logo 
 - [ ] changing fonts 
 - [ ] rotating(especially with gyro, mouse) 
 - [ ] background changing 
