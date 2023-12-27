@@ -4,49 +4,101 @@
     <title>casino_space_travel</title>
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              clifford: "#da373d",
-            },
-            textShadow: {
-              local: "2px 2px 4px #000000", // Custom shadow definition
-            },
-          },
-        },
-      };
-    </script>
     <style>
-      body {
+      html {
         transition: background 10s linear;
         background-color: #171616;
         font-size: 10vw;
       }
+
+      .grainy-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(rgba(0, 0, 0, 0.5) 1px, transparent 1px) 0 -1px,
+          linear-gradient(90deg, rgba(0, 0, 0, 0.5) 1px, transparent 1px) -1px 0;
+        background-size: 2px 2px; /* Adjust the background size */
+        z-index: 1;
+        animation: grain 5s infinite linear;
+        transform: translateZ(0);
+      }
       #head,
       #sub {
         transition: font-size 10s linear, height 10s linear;
+        filter: blur(1px);
+        animation: shadowAnimation 30s infinite;
       }
+
       #sub {
-        transform: translateY(-15%);
+        transform: translateY(-45%);
+      }
+
+      @keyframes grain {
+        0%,
+        100% {
+          background-position: 0 0;
+        }
+        25% {
+          background-position: 5px 5px;
+        }
+        50% {
+          background-position: -5px -5px;
+        }
+        75% {
+          background-position: 10px 10px;
+        }
+      }
+      .glitch {
+        position: relative;
+        overflow: hidden;
+        animation: glitch 5s infinite;
+      }
+
+      @keyframes glitch {
+        0% {
+          transform: translateX(0);
+        }
+        2% {
+          transform: translateX(2px);
+        }
+        4% {
+          transform: translateX(-2px);
+        }
+        100% {
+          transform: translateX(0);
+        }
+      }
+
+      @keyframes shadowAnimation {
+        0% {
+          text-shadow: -4px 4px 5px #711c13, 6px 6px 5px #2d3d51;
+        }
+        50% {
+          text-shadow: 12px 12px 5px #711c13, -6px -6px 5px #2d3d51;
+        }
+        100% {
+          text-shadow: 0px 0px 5px #711c13, 0px 0px 5px #2d3d51;
+        }
       }
     </style>
   </head>
   <body class="w-full h-[100vh] flex">
+    <div class="grainy-bg"></div>
     <div
       id="logo"
       class="absolute flex flex-col gap-5 w-full h-[100vh] justify-center items-center"
     >
       <div
         id="head"
-        class="w-full h-1/2 flex justify-center items-end text-shadow-local text-white/80"
+        class="w-full h-1/2 flex justify-center items-end text-shadow-local text-white glitch"
       >
         casino
       </div>
       <div
         id="sub"
-        class="whitespace-nowrap w-full h-1/2 flex justify-center items-start text-white/20 uppercase text-sm"
+        class="whitespace-nowrap w-full h-1/2 flex justify-center items-start text-white uppercase text-sm"
       >
         space travel
       </div>
@@ -81,7 +133,7 @@
       let subElement = document.getElementById("sub");
       subElement.style.fontFamily =
         fonts[Math.floor(Math.random() * fonts.length)];
-      let random2 = Math.floor(Math.random() * 50);
+      let random2 = Math.floor(Math.random() * 20 + 50);
       setTimeout(() => {
         subElement.style.fontSize = random2 + "%"; // Set the font size
       }, 1);
@@ -111,7 +163,7 @@
 
     document.addEventListener("DOMContentLoaded", function () {
       updatePage(); // Call the function once when the DOM is ready
-      setInterval(updatePage, 10000);
+      setInterval(updatePage, 5000);
     });
 
     // live update
@@ -120,39 +172,3 @@
     // }, 300000);
   </script>
 </html>
-
-<!-- CANDO
-1. serve html: `python3 -m http.server 8002` 
-2. view site: `http://localhost:8002`
-3. live update: js
--->
-
-<!-- TODO
---DONE
-- [x] need to serve html 
-- [x] live update
---NEXT 
-- [x] logo 
-- [x] changing fonts
-- [x] bg gradient updates
-- [x] changing size 
-- [ ] rotating (especially with gyro, mouse) - https://codepen.io/cmegown/pen/jMoPvQ
-- [ ] background image changing 
-- [ ] turn on and off music 
----SOMEDAY
-- [ ] fractals
-- [ ] live music
-
--->
-
-<!-- LOG
-20231226
-got a lot done today, and had fun
-
-frustrated with the choppiness of everything and the lack of control of animations
-
-maybe need to look at old animation library
-
-the aesthetic isnt right yet, but also, its interesting 
-
- -->
