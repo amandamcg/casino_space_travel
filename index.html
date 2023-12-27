@@ -7,7 +7,7 @@
       // live update
       setInterval(function () {
         window.location.reload();
-      }, 15000);
+      }, 300000);
 
       // update fonts
       let fonts = [
@@ -25,7 +25,8 @@
 
         if (headElement) {
           headElement.style.fontFamily = fonts[currentFontIndex];
-          let randomFontSize = Math.floor(Math.random() * (1200 - 50 + 1)) + 50;
+          let randomFontSize =
+            Math.floor(Math.random() * (120 - 50 + 1) * 100) + 10;
           headElement.style.fontSize = randomFontSize + "%"; // Set the font size
         } else {
           console.error('Element with ID "head" not found.');
@@ -33,7 +34,8 @@
 
         if (subElement) {
           subElement.style.fontFamily = fonts[currentFontIndex + 1];
-          let randomFontSize = Math.floor(Math.random() * (1200 - 50 + 1)) + 50;
+          let randomFontSize =
+            Math.floor(Math.random() * (120 - 50 + 1) * 50) + 2;
           subElement.style.fontSize = randomFontSize + "%"; // Set the font size
         } else {
           console.error('Element with ID "sub" not found.');
@@ -44,28 +46,48 @@
       }
 
       setInterval(changeFonts, 1000); // Change font every 1000 milliseconds (1 second)
+
+      //update background
+      function updateBackground() {
+        let percentage = Math.floor(Math.random() * 100);
+        document.body.style.background = `-webkit-radial-gradient(${percentage}% ${percentage}%, circle cover, #2D2A29, #171616)`;
+      }
+
+      //update page
+      function updatePage() {
+        changeFonts();
+        updateBackground();
+      }
+
+      setInterval(updatePage, 3000);
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      #head {
-        font-family: Georgia, "Times New Roman", Times, serif, sans-serif; /* Default font */
+      #head,
+      #sub {
+        transition: font-size 10s ease-in-out;
+      }
+
+      body {
+        transition: background 3s ease-in-out;
+        background-color: #171616;
       }
     </style>
   </head>
-  <body class="w-full h-full bg-slate-500">
+  <body class="w-full h-[100vh] flex">
     <div
       id="logo"
-      class="flex flex-col gap-5 w-full h-[100vh] justify-center items-center"
+      class="absolute flex flex-col gap-5 w-full h-[100vh] justify-center items-center text-[#90857B]"
     >
       <div
         id="head"
-        class="w-full h-1/2 flex overflow-hidden justify-center items-center"
+        class="w-full h-1/2 flex overflow-hidden justify-center items-end"
       >
         casino
       </div>
       <div
         id="sub"
-        class="whitespace-nowrap w-full h-1/2 flex justify-center overflow-hidden items-center"
+        class="whitespace-nowrap w-full h-1/2 flex justify-center overflow-hidden items-start"
       >
         space travel
       </div>
@@ -85,9 +107,11 @@
 - [x] live update
 --NEXT 
 - [x] logo 
-- [ ] changing fonts 
-- [ ] rotating(especially with gyro, mouse) 
-- [ ] background changing 
+- [x] changing fonts
+- [x] bg gradient updates
+- [ ] changing size 
+- [ ] rotating (especially with gyro, mouse) - https://codepen.io/cmegown/pen/jMoPvQ
+- [ ] background image changing 
 - [ ] turn on and off music 
 ---SOMEDAY
 - [ ] fractals
