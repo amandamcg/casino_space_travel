@@ -3,37 +3,54 @@
   <head>
     <title>Your Page Title</title>
     <script type="text/javascript">
-      // Set the time interval for auto refresh (in milliseconds)
-      // 5000 milliseconds = 5 seconds
+      // live update
       setInterval(function () {
         window.location.reload();
-      }, 5000);
+      }, 1000);
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              clifford: "#aaaaaa",
+            },
+          },
+        },
+      };
     </script>
   </head>
-  <body>
-    hello world
+  <body class="w-full h-full bg-slate-500">
+    <div
+      #logo
+      class="flex flex-col gap-5 w-full h-[100vh] justify-center items-center"
+    >
+      <div #main>casino</div>
+      <div #sub>space travel</div>
+    </div>
   </body>
 </html>
 
-<!-- DEVOPS
+<!-- CANDO
 1. serve html: `python3 -m http.server 8002` 
 2. view site: `http://localhost:8002`
+3. live update: js
 -->
 
 <!-- TODO
+--DONE
 - [x] need to serve html 
-- [x] live update 
+- [x] live update
+--NEXT 
+- [ ] logo 
+- [ ] changing fonts 
+- [ ] rotating(especially with gyro, mouse) 
+- [ ] background changing 
+- [ ] turn on and off music 
+---SOMEDAY
+- [ ] fractals
+- [ ] live music
 
----- 
-
-- logo 
-- changing fonts 
-- rotating(especially with gyro, mouse) 
-- background changing 
-- turn on and off music 
-
-
----
-
-- someday (fractals, live music) 
 -->
