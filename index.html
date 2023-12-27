@@ -2,97 +2,111 @@
 <html>
   <head>
     <title>casino_space_travel</title>
-
-    <script type="text/javascript">
-      // live update
-      setInterval(function () {
-        window.location.reload();
-      }, 300000);
-
-      // update fonts
-      let fonts = [
-        "Arial",
-        "Verdana",
-        "Times New Roman",
-        "Georgia",
-        "Courier New",
-      ];
-      let currentFontIndex = 0;
-
-      function changeFonts() {
-        let headElement = document.getElementById("head");
-        let subElement = document.getElementById("sub");
-
-        if (headElement) {
-          headElement.style.fontFamily = fonts[currentFontIndex];
-          let randomFontSize =
-            Math.floor(Math.random() * (120 - 50 + 1) * 100) + 10;
-          headElement.style.fontSize = randomFontSize + "%"; // Set the font size
-        } else {
-          console.error('Element with ID "head" not found.');
-        }
-
-        if (subElement) {
-          subElement.style.fontFamily = fonts[currentFontIndex + 1];
-          let randomFontSize =
-            Math.floor(Math.random() * (120 - 50 + 1) * 50) + 2;
-          subElement.style.fontSize = randomFontSize + "%"; // Set the font size
-        } else {
-          console.error('Element with ID "sub" not found.');
-        }
-
-        currentFontIndex = (currentFontIndex + 1) % fonts.length;
-        console.debug("changeFonts() ran");
-      }
-
-      setInterval(changeFonts, 1000); // Change font every 1000 milliseconds (1 second)
-
-      //update background
-      function updateBackground() {
-        let percentage = Math.floor(Math.random() * 100);
-        document.body.style.background = `-webkit-radial-gradient(${percentage}% ${percentage}%, circle cover, #2D2A29, #171616)`;
-      }
-
-      //update page
-      function updatePage() {
-        changeFonts();
-        updateBackground();
-      }
-
-      setInterval(updatePage, 3000);
-    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              clifford: "#da373d",
+            },
+            textShadow: {
+              local: "2px 2px 4px #000000", // Custom shadow definition
+            },
+          },
+        },
+      };
+    </script>
     <style>
+      body {
+        transition: background 10s linear;
+        background-color: #171616;
+        font-size: 10vw;
+      }
       #head,
       #sub {
-        transition: font-size 10s ease-in-out;
-      }
-
-      body {
-        transition: background 3s ease-in-out;
-        background-color: #171616;
+        transition: font-size 10s linear, height 10s linear;
       }
     </style>
   </head>
   <body class="w-full h-[100vh] flex">
     <div
       id="logo"
-      class="absolute flex flex-col gap-5 w-full h-[100vh] justify-center items-center text-[#90857B]"
+      class="absolute flex flex-col gap-5 w-full h-[100vh] justify-center items-center text-white"
     >
       <div
         id="head"
-        class="w-full h-1/2 flex overflow-hidden justify-center items-end"
+        class="w-full h-1/2 flex justify-center items-end text-shadow-local"
       >
         casino
       </div>
       <div
         id="sub"
-        class="whitespace-nowrap w-full h-1/2 flex justify-center overflow-hidden items-start"
+        class="whitespace-nowrap w-full h-1/2 flex justify-center items-start"
       >
         space travel
       </div>
     </div>
   </body>
+
+  <script type="text/javascript">
+    // update fonts
+    let fonts = [
+      "Arial",
+      "Verdana",
+      "Times New Roman",
+      "Georgia",
+      "Courier New",
+    ];
+    let currentFontIndex = 0;
+
+    function changeFonts() {
+      currentFontIndex = (currentFontIndex + 1) % fonts.length;
+
+      let headElement = document.getElementById("head");
+      headElement.style.fontFamily = fonts[currentFontIndex];
+      let random1 = Math.floor(Math.random() * (120 - 50 + 200)) + 100;
+      headElement.style.fontSize = random1 + "%"; // Set the font size
+
+      let subElement = document.getElementById("sub");
+      subElement.style.fontFamily = fonts[currentFontIndex + 1];
+      let random2 = Math.floor(Math.random() * (120 - 50 + 1)) + 20;
+      subElement.style.fontSize = random2 + "%"; // Set the font size
+
+      // console.debug("changeFonts() ran");
+    }
+
+    //update background
+    function updateBackground() {
+      let percentage = Math.floor(Math.random() * 100);
+      document.body.style.background = `-webkit-radial-gradient(${percentage}% ${percentage}%, circle cover, #2D2A29, #171616)`;
+    }
+
+    //update height
+    function adjustHeight() {
+      var div = document.getElementById("head");
+      let randomSize = Math.random() * 50 + 25;
+      div.style.height = randomSize + "vh";
+    }
+
+    //update page
+    function updatePage() {
+      changeFonts();
+      adjustHeight();
+      updateBackground();
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      updatePage(); // Call the function once when the DOM is ready
+      setInterval(updatePage, 10000);
+    });
+
+    // live update
+    // setInterval(function () {
+    //   window.location.reload();
+    // }, 300000);
+  </script>
 </html>
 
 <!-- CANDO
@@ -109,7 +123,7 @@
 - [x] logo 
 - [x] changing fonts
 - [x] bg gradient updates
-- [ ] changing size 
+- [x] changing size 
 - [ ] rotating (especially with gyro, mouse) - https://codepen.io/cmegown/pen/jMoPvQ
 - [ ] background image changing 
 - [ ] turn on and off music 
@@ -118,3 +132,15 @@
 - [ ] live music
 
 -->
+
+<!-- LOG
+20231226
+got a lot done today, and had fun
+
+frustrated with the choppiness of everything and the lack of control of animations
+
+maybe need to look at old animation library
+
+the aesthetic isnt right yet, but also, its interesting 
+
+ -->
