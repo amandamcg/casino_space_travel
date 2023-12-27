@@ -40,7 +40,7 @@
         }
 
         currentFontIndex = (currentFontIndex + 1) % fonts.length;
-        console.log("changeFonts() ran");
+        console.debug("changeFonts() ran");
       }
 
       setInterval(changeFonts, 1000); // Change font every 1000 milliseconds (1 second)
