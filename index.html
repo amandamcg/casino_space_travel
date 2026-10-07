@@ -1,107 +1,52 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>casino_space_travel</title>
-    <link rel="preconnect" href="https://fonts.gstatic.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
-
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./style.css" />
-  </head>
-
-  <body>
-    <!-- partial:index.partial.html -->
-    <!-- Canvas -->
-    <canvas class="orb-canvas"></canvas>
-
-    <main id="lines" class="h-screen grid place-items-center text-white">
-      <section class="w-full h-full relative grid place-items-center">
-        <div
-          class="rounded-full absolute w-full h-full border border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[35%] h-[95%] border border-4 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[20%] h-[90%] border border-2 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[85%] h-[85%] border border-10 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[88%] h-[80%] border border-3 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[75%] h-[75%] border border-8 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[70%] h-[70%] border border-8 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[65%] h-[65%] border border-10 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[60%] h-[60%] border border-3 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[5%] h-[55%] border border-20 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[50%] h-[90%] border border-8 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[4%] h-[45%] border border-2 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[40%] h-[40%] border border-10 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[35%] h-[45%] border border-8 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[30%] h-[40%] border border-4 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[25%] h-[25%] border border-2 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[20%] h-[20%] border border-10 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[20%] h-[15%] border border-10 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[20%] h-[10%] border border-10 border-neutral-100"
-        ></div>
-        <div
-          class="rounded-full absolute w-[20%] h-[5%] border border-10 border-neutral-100"
-        ></div>
-      </section>
-    </main>
-
-    <!-- Overlay -->
-    <div class="overlay">
-      <!-- Overlay inner wrapper -->
-      <div class="overlay__inner">
-        <!-- Title -->
-        <a href="https://casinospacetravel.bandcamp.com">
-          <h1 class="overlay__title mt-[30%] absolute top-[30%]">
-            <span class="text-gradient">casino<br />space<br />travel</span>
-          </h1>
-        </a>
-        <!-- Buttons -->
-        <div class="overlay__btns">
-          <button class="realArcade overlay__btn overlay__btn--colors"></button>
-        </div>
-      </div>
-    </div>
-    <!-- partial -->
-    <script src="https://unpkg.co/gsap@3/dist/gsap.min.js"></script>
-    <script type="module" src="./script.js"></script>
-  </body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casino Space Travel</title>
+<meta name="description" content="A fractal, live, with spots that cast shadows. Move the mouse or tilt the phone to move the light.">
+<style>
+  /* ABC Areal Mono by Dinamo, under Amanda's licence; only the one weight the page uses. */
+  @font-face { font-family: "ABC Areal Mono"; src: url(fonts/ABCArealMono-Regular.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: #cfd4dc; font: 14px/1.4 "ABC Areal Mono", ui-monospace, Menlo, monospace; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #foot { position: fixed; left: 0; right: 0; bottom: max(30px, calc(env(safe-area-inset-bottom) + 22px)); margin: 0; padding: 0 12px; display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 22px; font: 13px/1.9 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.26em; opacity: 0.9; color: #fff; text-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
+  #foot a { color: #fff; text-decoration: none; }
+  #foot span { white-space: nowrap; }
+  #hint { position: fixed; left: 0; right: 0; bottom: max(70px, calc(env(safe-area-inset-bottom) + 60px)); text-align: center; pointer-events: none; padding: 0 16px; display: none; }
+  #hint.stay { display: block; }
+  /* The hand-lettered mark in the middle of the screen, the dates under it. The mark is
+     the traced SVG as a mask, so the page colours it. */
+  #title { position: fixed; left: 0; right: 0; top: 50%; transform: translateY(-58%); display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 3vw, 26px); pointer-events: none; padding: 0 16px; }
+  #mark { width: min(520px, 78vw); aspect-ratio: 1256 / 358; background: #fff; opacity: 0.92;
+    -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
+  /* The dates: one paragraph each, lines tight within an entry, a clear gap between
+     entries. On a desktop 13px on one line each; on a phone at least 12pt (16px),
+     spaced less wide so an entry wraps to two lines at most. */
+  #dates { margin: 0; text-align: center; color: #fff; opacity: 0.9; font: 13px/1.35 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.26em; text-transform: lowercase; white-space: nowrap; text-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
+  #dates p { margin: 0; }
+  #dates p + p { margin-top: 0.6em; }
+  @media (max-width: 760px) {
+    #dates { font-size: 16px; letter-spacing: 0.1em; white-space: normal; text-wrap: balance; max-width: 92vw; }
+    #dates p + p { margin-top: 0.75em; }
+    #foot { font-size: 16px; letter-spacing: 0.1em; }
+  }
+  #enable { position: fixed; left: 50%; top: 78%; transform: translate(-50%, -50%); font: inherit; background: #14161a; color: #eef; border: 1px solid #3c4352; padding: 12px 18px; }
+</style>
+</head>
+<body>
+<canvas id="view" aria-label="A fractal with spots that cast shadows"></canvas>
+<div id="title">
+  <div id="mark" role="img" aria-label="Casino Space Travel"></div>
+  <div id="dates">
+    <p>nov 7 at 7p puppet show @ beatnik</p>
+    <p>dec 12 - jan 3 interactive exhibit with ferals @ la mat</p>
+    <p>jan 1 - sonic sound bath time tbd @ la mat</p>
+  </div>
+</div>
+<p id="hint"></p>
+<button id="enable" hidden>Tap to let the page use your phone's tilt</button>
+<p id="foot"><span><a href="https://casinospacetravel.bandcamp.com/">bandcamp</a> * <a href="mailto:casinospacetravelmusic@protonmail.com">collaborate</a></span></p>
+<script type="module" src="js/experience.js"></script>
+</body>
 </html>
