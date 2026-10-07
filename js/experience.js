@@ -99,6 +99,7 @@ const FRAG = `#version 300 es
 precision highp float;
 #define N ${SPOTS}
 uniform vec2 uRes;
+uniform float uPortrait;      // 1 on a tall screen: the field and everything on it turn 90 degrees
 uniform sampler2D uPic;
 uniform vec3 uLight;          // toward the light
 uniform vec4 uSpot[N];        // x, y, height above the field, radius
@@ -111,10 +112,17 @@ out vec4 outColor;
 
 const vec2 FIELD = vec2(2.3, 1.725);   // half size of the lit field, the picture's shape; past every edge of the screen
 
+// A point of the field as the picture sees it: on a tall screen the field is turned a
+// quarter turn, so the wide picture lies along the long way of the screen.
+vec2 unturned(vec2 p) {
+  return uPortrait > 0.5 ? vec2(p.y, -p.x) : p;
+}
+
 vec3 pic(vec2 p) {   // the picture at a point of the field, p in field units, soft at its edges
-  vec2 uv = p / FIELD * 0.5 + 0.5;
-  if (abs(p.x) > FIELD.x || abs(p.y) > FIELD.y) return vec3(0.0);
-  vec2 edge = smoothstep(vec2(0.0), vec2(0.12), FIELD - abs(p));
+  vec2 q = unturned(p);
+  vec2 uv = q / FIELD * 0.5 + 0.5;
+  if (abs(q.x) > FIELD.x || abs(q.y) > FIELD.y) return vec3(0.0);
+  vec2 edge = smoothstep(vec2(0.0), vec2(0.12), FIELD - abs(q));
   return texture(uPic, vec2(uv.x, 1.0 - uv.y)).rgb * edge.x * edge.y;
 }
 
@@ -543,8 +551,11 @@ function frame(now) {
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, flameCanvas);
   gl.uniform1i(u("uPic"), 0);
   gl.uniform2f(u("uRes"), view.width, view.height);
+  const portrait = view.height > view.width;
+  gl.uniform1f(u("uPortrait"), portrait ? 1 : 0);
   gl.uniform3f(u("uLight"), lx, ly, lz);
-  gl.uniform4fv(u("uSpot"), spots.flat());
+  // On a tall screen the stones turn with the field: (x, y) on the wide field becomes (-y, x).
+  gl.uniform4fv(u("uSpot"), spots.flatMap((q) => (portrait ? [-q[1], q[0], q[2], q[3]] : q)));
   gl.uniform4fv(u("uLook"), looks.flat());
   gl.uniform1f(u("uTime"), t);
   gl.activeTexture(gl.TEXTURE1);
