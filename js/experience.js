@@ -9,7 +9,7 @@
  * only to be served as files. The field and the spots are a small ray tracer of their own.
  */
 
-import { FlameAnimator } from "./genome.js";
+import { FlameAnimator, setLikedPalettes } from "./genome.js";
 import { FlameRenderer } from "./flame.js";
 import { makeRng, randomSeed, clamp } from "./rng.js";
 import { defaults } from "./settings.js";
@@ -42,6 +42,13 @@ function fail(text) {
 // ----------------------------------------------------------------- the fractal
 
 const S = defaults();
+// The palettes Amanda has liked in the show, a static copy (js/liked-palettes.json, from
+// show 8/data/palettes.json), so the page draws from the same pool as the gallery
+// (Amanda, 2026-10-08). Without the file, the built-in palettes alone.
+fetch("js/liked-palettes.json")
+  .then((r) => (r.ok ? r.json() : null))
+  .then((j) => j && setLikedPalettes(j.liked, false))
+  .catch(() => {});
 const rng = makeRng(randomSeed());
 // A different number of shades each time the page is opened (Amanda, 2026-10-07).
 const SPOTS = 4 + Math.floor(rng.next() * 6);
