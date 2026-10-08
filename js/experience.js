@@ -21,7 +21,10 @@ const H = 768;
 // under img/rocks/, listed here; with none, each spot shows its own piece of the fractal.
 // Each spot drifts from one photograph to the next, cross-fading over a few seconds.
 // A list on the address works too, to try some without editing: ?rocks=img/rocks/a.jpg,img/rocks/b.jpg
-const ROCKS = [...(new URLSearchParams(location.search).get("rocks") || "").split(",").filter(Boolean)];
+// Amanda's rocks, scanned on the flatbed 2026-10-07 and cut apart by tools/scan_rocks.py.
+const SCANNED = Array.from({ length: 25 }, (_, i) => `img/rocks/rock-${String(i + 1).padStart(2, "0")}.jpg`);
+const asked = (new URLSearchParams(location.search).get("rocks") || "").split(",").filter(Boolean);
+const ROCKS = asked.length ? asked : SCANNED;
 const ROCK_HOLD = 6; // seconds a spot keeps one photograph
 const ROCK_FADE = 3; // seconds it takes to become the next
 const AUTO_EXP_MIN = 0.003;
