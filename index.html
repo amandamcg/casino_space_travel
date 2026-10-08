@@ -10,7 +10,7 @@
   @font-face { font-family: "ABC Areal Mono"; src: url(fonts/ABCArealMono-Regular.woff2) format("woff2"); font-weight: 400; font-display: swap; }
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: #cfd4dc; font: 14px/1.4 "ABC Areal Mono", ui-monospace, Menlo, monospace; }
   #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  #foot { position: fixed; left: 0; right: 0; bottom: max(30px, calc(env(safe-area-inset-bottom) + 22px)); margin: 0; padding: 0 12px; display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 22px; font: 13px/1.9 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.26em; opacity: 0.9; color: #fff; text-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
+  #foot { position: fixed; left: 0; right: 0; bottom: max(30px, calc(env(safe-area-inset-bottom) + 22px)); margin: 0; padding: 0 12px; display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 22px; font: 13px/1.9 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.26em; opacity: 0.9; color: #fff; text-shadow: 0 0 6px rgba(0, 0, 0, 0.7), var(--shadow-x) var(--shadow-y) var(--shadow-blur) rgba(0, 0, 0, 0.75); }
   #foot a { color: #fff; text-decoration: none; }
   #foot span { white-space: nowrap; }
   #hint { position: fixed; left: 0; right: 0; bottom: max(70px, calc(env(safe-area-inset-bottom) + 60px)); text-align: center; pointer-events: none; padding: 0 16px; display: none; }
@@ -18,14 +18,26 @@
   /* The hand-lettered mark in the middle of the screen, the dates under it. The mark is
      the traced SVG as a mask, so the page colours it. */
   #title { position: fixed; left: 0; right: 0; top: 50%; transform: translateY(-58%); display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 3vw, 26px); pointer-events: none; padding: 0 16px; }
-  #mark { width: min(520px, 78vw); aspect-ratio: 1256 / 358; background: #fff; opacity: 0.92;
+  /* The shadows of the mark and the words follow the light, like the stones' (the page
+     sets the variables each frame), over a close dark halo that keeps the white letters
+     readable on any field (Amanda, 2026-10-07). The mark is a mask, so its shadows are
+     filters. */
+  :root { --shadow-x: 0em; --shadow-y: -0.4em; --shadow-blur: 0.6em; }
+  /* The mask sits on an inner layer: a mask is applied after a filter, so on the same
+     element it would cut the shadow away with everything else outside the letters. */
+  #mark { width: min(520px, 78vw); aspect-ratio: 1256 / 358; font-size: 16px;
+    filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.7)) drop-shadow(var(--shadow-x) var(--shadow-y) var(--shadow-blur) rgba(0, 0, 0, 0.75)); }
+  #mark::before { content: ""; display: block; width: 100%; height: 100%; background: #fff; opacity: 0.92;
     -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
   /* The dates: one paragraph each, lines tight within an entry, a clear gap between
      entries. On a desktop 13px on one line each; on a phone at least 12pt (16px),
      spaced less wide so an entry wraps to two lines at most. */
-  #dates { margin: 0; text-align: center; color: #fff; opacity: 0.9; font: 13px/1.35 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.26em; text-transform: lowercase; white-space: nowrap; text-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
+  #dates { margin: 0; text-align: center; color: #fff; opacity: 0.9; font: 13px/1.35 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.26em; text-transform: lowercase; white-space: nowrap; text-shadow: 0 0 6px rgba(0, 0, 0, 0.7), var(--shadow-x) var(--shadow-y) var(--shadow-blur) rgba(0, 0, 0, 0.75); }
   #dates p { margin: 0; }
   #dates p + p { margin-top: 0.6em; }
+  /* Links in the dates: the title block lets the mouse through to the light, so only the
+     links themselves take clicks; a thin underline says they are links. */
+  #dates a { color: inherit; pointer-events: auto; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; text-decoration-color: rgba(255, 255, 255, 0.55); }
   @media (max-width: 760px) {
     #title { padding: 0 8px; }
     #dates { font-size: 16px; letter-spacing: 0; white-space: normal; text-wrap: balance; max-width: 96vw; }
@@ -41,8 +53,8 @@
   <div id="mark" role="img" aria-label="Casino Space Travel"></div>
   <div id="dates">
     <p>nov 7 at 7pm - puppet show @ beatnik</p>
-    <p>dec 12 to jan 3 weekends - interactive exhibit with ferals @ la mat</p>
-    <p>jan 1 at tbd time - sound bath @ la mat</p>
+    <p>dec 12 to jan 3 weekends - interactive exhibit with <a href="http://feralgirlcollective.net/">ferals</a> @ <a href="https://lamatadoragallery.org/">la mat</a></p>
+    <p>jan 1 at tbd time - sound bath @ <a href="https://lamatadoragallery.org/">la mat</a></p>
   </div>
 </div>
 <p id="hint"></p>

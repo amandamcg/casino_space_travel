@@ -20,6 +20,8 @@
 import { MAX_XFORMS, NVAR, NPRM, PALETTE_SIZE, cumulativeWeights } from "./genome.js";
 
 const STATS_SIZE = 32;
+// Frames to give the GPU for a stats read before reading the old, waiting way.
+const STATS_STALL = 12;
 
 const QUAD_VS = `#version 300 es
 precision highp float;
@@ -312,7 +314,11 @@ function uniforms(gl, prog, names) {
 }
 
 export class FlameRenderer {
-  constructor(canvas, width, height, onContextLost, log) {
+  /**
+   * `pointSide` is the point texture's side to start with (points = side squared). The
+   * show passes the one its settings ask for, so the state is not made twice at boot.
+   */
+  constructor(canvas, width, height, onContextLost, log, pointSide = 512) {
     this.canvas = canvas;
     this.width = width;
     this.height = height;
@@ -383,9 +389,15 @@ export class FlameRenderer {
     }
     this.accIdx = 0;
 
-    // Stats target.
+    // Stats target, read back through a buffer so the page never waits for the GPU
+    // (see readStats); `statsSync` is the fence of a read in flight.
     this.stats = this.makeTarget(STATS_SIZE, STATS_SIZE, gl.RGBA8);
     this.statsBytes = new Uint8Array(STATS_SIZE * STATS_SIZE * 4);
+    this.statsPbo = gl.createBuffer();
+    this.statsSync = null;
+    this.statsWait = 0;
+    this.lastStats = null;
+    this.statsFallbacks = 0; // times the fence was too slow and the page waited
 
     // Uniform scratch.
     this.cw = new Float32Array(MAX_XFORMS);
@@ -397,7 +409,7 @@ export class FlameRenderer {
 
     this.frame = 0;
     this.texW = 0;
-    this.setPointTexture(512);
+    this.setPointTexture(pointSide);
   }
 
   makeTarget(w, h, internal) {
@@ -576,11 +588,8 @@ export class FlameRenderer {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
-  /**
-   * Downsample the accumulation buffer and read it back.
-   * Returns { cx, cy, spread, coverage } in normalized device coords, or null.
-   */
-  readStats(exposure, floor = 0) {
+  /** Draw the 32 x 32 density picture of the accumulation buffer; leaves its target bound. */
+  drawStats(exposure, floor) {
     const gl = this.gl;
     const acc = this.acc[this.accIdx];
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.stats.fbo);
@@ -598,9 +607,86 @@ export class FlameRenderer {
     gl.uniform1f(this.uStats.u_floor, floor);
     gl.bindVertexArray(this.vao);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  /**
+   * Start a stats read that does not wait: the pixels go into a buffer on the GPU and a
+   * fence says when they are there. pollStats picks them up on a later frame.
+   */
+  startStats(exposure, floor) {
+    const gl = this.gl;
+    this.drawStats(exposure, floor);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this.statsPbo);
+    gl.bufferData(gl.PIXEL_PACK_BUFFER, this.statsBytes.byteLength, gl.STREAM_READ);
+    gl.readPixels(0, 0, STATS_SIZE, STATS_SIZE, gl.RGBA, gl.UNSIGNED_BYTE, 0);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    this.statsSync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+    this.statsWait = 0;
+    gl.flush();
+  }
+
+  /** Read the stats now, waiting for the GPU: the first time, and when a fence is too slow. */
+  readStatsNow(exposure, floor) {
+    const gl = this.gl;
+    this.dropStats();
+    this.drawStats(exposure, floor);
     gl.readPixels(0, 0, STATS_SIZE, STATS_SIZE, gl.RGBA, gl.UNSIGNED_BYTE, this.statsBytes);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    this.lastStats = this.summarizeStats();
+  }
 
+  /** Forget a read in flight. */
+  dropStats() {
+    if (!this.statsSync) return;
+    this.gl.deleteSync(this.statsSync);
+    this.statsSync = null;
+  }
+
+  /**
+   * Once a frame: if the GPU has finished the read in flight, take its numbers.
+   * Costs a fence check, never a wait. Returns true when new numbers arrived.
+   */
+  pollStats() {
+    if (!this.statsSync) return false;
+    const gl = this.gl;
+    const status = gl.clientWaitSync(this.statsSync, 0, 0);
+    if (status === gl.TIMEOUT_EXPIRED) {
+      this.statsWait++;
+      return false;
+    }
+    if (status === gl.WAIT_FAILED) {
+      this.statsWait = STATS_STALL; // readStats will read the waiting way
+      return false;
+    }
+    this.dropStats();
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this.statsPbo);
+    gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, this.statsBytes);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    this.lastStats = this.summarizeStats();
+    return true;
+  }
+
+  /**
+   * The density reading: { cx, cy, spread, coverage, level, p90 } in normalized device
+   * coords. Called every few dozen frames. The numbers are from the read started the
+   * time before (half a second old at 60 fps; the auto-framing does not mind), so the
+   * page never stalls on the GPU; a new read is started each time. The first call, and
+   * any time a read has not finished within STATS_STALL frames, reads the old waiting
+   * way, so the reading can never go dead.
+   */
+  readStats(exposure, floor = 0) {
+    this.pollStats();
+    if (this.lastStats === null || (this.statsSync && this.statsWait >= STATS_STALL)) {
+      if (this.lastStats !== null) this.statsFallbacks++;
+      this.readStatsNow(exposure, floor);
+    }
+    if (!this.statsSync) this.startStats(exposure, floor);
+    return this.lastStats;
+  }
+
+  /** The numbers in statsBytes: where the density is, how spread, how much of the frame. */
+  summarizeStats() {
     let total = 0;
     let sx = 0;
     let sy = 0;

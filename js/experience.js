@@ -108,9 +108,12 @@ uniform vec3 uLight;          // toward the light
 uniform vec4 uSpot[N];        // x, y, height above the field, radius
 uniform vec4 uLook[N];        // zoom, pan x, pan y, hue turn (radians)
 uniform float uTime;
-uniform sampler2D uRocks;     // the photographs, side by side in one strip
+uniform sampler2D uRocks;     // the photographs, in a grid on one texture
 uniform float uRockN;         // how many; 0 means use the fractal
-uniform vec3 uRock[N];        // this spot's photograph, the next, and how far between them
+uniform vec2 uRockGrid;       // columns and rows of that grid
+uniform sampler2D uShapes;    // each rock's silhouette: a row of radii round the compass
+uniform float uShapeN;        // how many rows; 0 means the stones are smooth lobed domes
+uniform vec4 uRock[N];        // this spot's photograph, the next, how far between them, and the rock whose shape it keeps
 out vec4 outColor;
 
 const vec2 FIELD = vec2(2.3, 1.725);   // half size of the lit field, the picture's shape; past every edge of the screen
@@ -132,7 +135,9 @@ vec3 pic(vec2 p) {   // the picture at a point of the field, p in field units, s
 // One photograph from the strip, at uv within it.
 vec3 rock(float which, vec2 uv) {
   uv = clamp(uv, 0.004, 0.996);
-  return texture(uRocks, vec2((uv.x + which) / uRockN, uv.y)).rgb;
+  float col = mod(which, uRockGrid.x);
+  float row = floor(which / uRockGrid.x);
+  return texture(uRocks, vec2((uv.x + col) / uRockGrid.x, (uv.y + row) / uRockGrid.y)).rgb;
 }
 
 vec3 hueTurn(vec3 c, float a) {
@@ -145,14 +150,43 @@ vec3 hueTurn(vec3 c, float a) {
   return clamp(m * c, 0.0, 1.0);
 }
 
+// Rock which's silhouette at angle ang (anticlockwise from the right): how far its
+// edge is from the centre, as a fraction of the picture's half side, so the stone's
+// outline is the scanned rock's and the picture lands on it edge for edge.
+float outlineOf(float which, float ang) {
+  return texture(uShapes, vec2(ang / 6.2831853 + 0.5, (which + 0.5) / uShapeN)).r;
+}
+// The same for spot i: the one rock whose shape it keeps, so it never breathes as the
+// pictures cross-fade (Amanda, 2026-10-07).
+float outline(int i, float ang) {
+  return outlineOf(uRock[i].w, ang);
+}
+// That rock's mean radius, for the shadow's cone, and its narrowest, for safe marching.
+float girth(int i) {
+  return texture(uShapes, vec2(0.5, (uRock[i].w + 0.5) / uShapeN)).g;
+}
+float least(int i) {
+  return texture(uShapes, vec2(0.5, (uRock[i].w + 0.5) / uShapeN)).b;
+}
+
 // A spot's face: its own piece of the picture, turned its own colour.
 vec3 spotFace(int i, vec2 local) {
   vec4 k = uLook[i];
   if (uRockN > 0.5) {
-    // A photograph fills the spot; the next one fades in over it.
-    vec2 uv = local / uSpot[i].w * 0.5 + 0.5;
+    // A photograph fills the spot; the next one fades in over it. The stone keeps one
+    // rock's outline, so another rock's picture is pulled in or out along each compass
+    // line until its edge meets the stone's edge.
+    vec4 r = uRock[i];
+    vec2 uv = local / uSpot[i].w * 0.5;
+    if (uShapeN > 0.5) {
+      float ang = atan(local.y, local.x);
+      float base = outlineOf(r.w, ang);
+      vec2 a = uv * outlineOf(r.x, ang) / base + 0.5;
+      vec2 b = uv * outlineOf(r.y, ang) / base + 0.5;
+      return mix(rock(r.x, vec2(a.x, 1.0 - a.y)), rock(r.y, vec2(b.x, 1.0 - b.y)), r.z);
+    }
+    uv += 0.5;
     uv.y = 1.0 - uv.y;
-    vec3 r = uRock[i];
     return mix(rock(r.x, uv), rock(r.y, uv), r.z);
   }
   vec2 uv = (local / uSpot[i].w) * 0.5 / k.x + 0.5 + k.yz * (1.0 - 1.0 / k.x) * 0.5;
@@ -168,7 +202,9 @@ vec3 spotFace(int i, vec2 local) {
 // the side's normal n. Standard cone sums: |xy - c| = rb + k z.
 bool hitShade(vec3 o, vec3 d, int i, float tmax, out float t, out vec3 n) {
   vec4 s = uSpot[i];
-  s.w *= 1.08; // the soft shape's lumps stick out past the cone
+  // The cone is as wide as the rock on average: its outline is too fine for a shadow
+  // three lights blur anyway, and marching it for every shadow ray would cost phones.
+  s.w *= uShapeN > 0.5 ? girth(i) * 1.05 : 1.08;
   float k = (s.w * TOP - s.w) / s.z;
   vec3 p0 = o - vec3(s.xy, 0.0);
   float A = d.x * d.x + d.y * d.y - k * k * d.z * d.z;
@@ -207,11 +243,29 @@ float shadeSdf(int i, vec3 p) {
   vec4 s = uSpot[i];
   vec3 axes = vec3(s.w, s.w * 0.9, s.z * 1.15);
   vec3 q = p - vec3(0.0, 0.0, -s.z * 0.15);
+  float ang = atan(q.y, q.x);
+  if (uShapeN > 0.5) {
+    // The scanned rock's own outline (Amanda, 2026-10-07): a dome whose every level has
+    // the rock's silhouette, scaled, so the picture's edge meets the stone's edge all the
+    // way round. Only the width follows the outline; the height is the stone's own, so
+    // the top stays one smooth point.
+    // Toward the crown the outline gives way to a circle: every direction meets at the
+    // axis, where the angle means nothing, and the outline's bumps would pinch there.
+    // The silhouette seen from above is the widest level, the base, and that keeps the
+    // rock's shape in full.
+    float w = sqrt(max(1.0 - pow(clamp(q.z / axes.z, 0.0, 1.0), 2.0), 0.0));
+    float k = mix(girth(i), outline(i, ang), w);
+    // Scaled by the rock's narrowest radius, not this angle's: where the outline curves
+    // inward the surface is nearer than this angle says, and a bolder step would land
+    // inside the stone and fold it.
+    float d = (length(vec3(q.xy / (s.w * k), q.z / axes.z)) - 1.0) * min(s.w * least(i), axes.z);
+    return max(d, -p.z);
+  }
   float v = clamp(q.z / axes.z, -1.0, 1.0) * 0.5 + 0.5;
   // The lobes go round the stone, so they must fade to nothing at the top, where every
   // direction meets, or they would fold into a crease there.
   float round = sqrt(max(1.0 - pow(clamp(q.z / axes.z, 0.0, 1.0), 2.0), 0.0));
-  float k = 1.0 + bumps(i, atan(q.y, q.x), v) * round;
+  float k = 1.0 + bumps(i, ang, v) * round;
   float d = (length(q / (axes * k)) - 1.0) * min(axes.x, axes.z) * k;
   return max(d, -p.z);
 }
@@ -240,12 +294,38 @@ bool marchShade(vec3 o, vec3 d, int i, float tmax, out float t, out vec3 n, out 
   float sq = sqrt(disc);
   float t0 = max((-B - sq) / (2.0 * A), 1e-4);
   float t1 = min((-B + sq) / (2.0 * A), tmax);
+  // And only the band of heights the stone fills: from its crown down to the field.
+  // Starting high above it wasted most of the march's steps, and a rock's outline
+  // needs short steps, so without this the march ran out and bit pieces off.
+  if (abs(d.z) > 1e-6) {
+    float tTop = (s.z * 1.15 - p0.z) / d.z;
+    float tField = -p0.z / d.z;
+    if (d.z < 0.0) {
+      t0 = max(t0, tTop);
+      t1 = min(t1, tField);
+    } else {
+      t0 = max(t0, tField);
+      t1 = min(t1, tTop);
+    }
+  }
   if (t1 <= t0) return false;
   float tt = t0;
-  for (int k = 0; k < 48; k++) {
+  float lastStep = 0.0;
+  for (int k = 0; k < 64; k++) {
     vec3 p = p0 + d * tt;
     float dist = shadeSdf(i, p);
     if (dist < 0.0015) {
+      // Settle on the surface between the last step outside and this one.
+      if (dist < 0.0 && k > 0) {
+        float lo = tt - lastStep;
+        float hi = tt;
+        for (int j = 0; j < 5; j++) {
+          float mid = (lo + hi) * 0.5;
+          if (shadeSdf(i, p0 + d * mid) < 0.0) hi = mid; else lo = mid;
+        }
+        tt = hi;
+        p = p0 + d * tt;
+      }
       float e = 0.003;
       n = normalize(vec3(
         shadeSdf(i, p + vec3(e, 0.0, 0.0)) - shadeSdf(i, p - vec3(e, 0.0, 0.0)),
@@ -255,7 +335,9 @@ bool marchShade(vec3 o, vec3 d, int i, float tmax, out float t, out vec3 n, out 
       top = n.z > 0.65; // the crown of the stone is its cloth end
       return true;
     }
-    tt += max(dist, 0.003);
+    // With a rock's outline the field is only nearly a distance, so step short of it.
+    lastStep = max(dist * (uShapeN > 0.5 ? 0.7 : 1.0), 0.003);
+    tt += lastStep;
     if (tt > t1) return false;
   }
   return false;
@@ -322,7 +404,9 @@ void main() {
     // it: no seam and no pinch at the top. The sides stretch it a little, as cloth does.
     vec2 uv = (q.xy - s.xy) / s.w;
     vec3 own = spotFace(i, q.xy - s.xy) * (0.3 + 0.45 * face);
-    col = own * weave(uv * 0.5 + 0.5);
+    // The weave was for the lampshade cloth; a scanned rock has its own grain, and the
+    // weave over it read as a mesh (Amanda, 2026-10-07).
+    col = uRockN > 0.5 ? own : own * weave(uv * 0.5 + 0.5);
   }
   if (best > 1e8) {
     float tt = -eye.z / d.z;
@@ -376,16 +460,24 @@ const u = (name) => {
 // The spots: scattered over the field, each with its own piece of the picture.
 const spots = [];
 const looks = [];
+// No stone under the mark and the words: their shadows pretend they lie on the field,
+// and a stone behind them would give that away (Amanda, 2026-10-07). The title block's
+// footprint in field units, a little above the middle; on a tall screen the field is
+// turned, so the block is tall and narrow in field terms instead.
+const tall = window.innerHeight > window.innerWidth; // the canvas is not yet fitted here
+const TITLE = tall ? { hx: 0.32, hy: 0.42, cy: 0.05 } : { hx: 0.6, hy: 0.3, cy: 0.05 };
+const underTitle = (x, y, base) => Math.abs(x) < TITLE.hx + base && Math.abs(y - TITLE.cy) < TITLE.hy + base;
 for (let i = 0; i < SPOTS; i++) {
-  // Anywhere on the screen, not on top of another.
+  // Anywhere on the screen, not on top of another, not under the title.
+  const base = rng.range(0.19, 0.3); // the outline reaches 0.7 to 0.95 of this
   let x = 0;
   let y = 0;
-  for (let tries = 0; tries < 40; tries++) {
+  for (let tries = 0; tries < 80; tries++) {
     x = rng.range(-1.45, 1.45);
     y = rng.range(-0.7, 0.95);
-    if (spots.every((q) => Math.hypot(q[0] - x, q[1] - y) > 0.62)) break;
+    if (!underTitle(x, y, base) && spots.every((q) => Math.hypot(q[0] - x, q[1] - y) > 0.62)) break;
   }
-  const base = rng.range(0.16, 0.26);
+  if (underTitle(x, y, base)) x = Math.sign(x || 1) * (TITLE.hx + base + 0.05); // out from under it
   spots.push([x, y, base * 0.9, base]); // wide, low stones
   looks.push([rng.range(1.6, 2.6), rng.range(-0.6, 0.6), rng.range(-0.6, 0.6), rng.range(1.0, 5.3)]);
 }
@@ -394,7 +486,10 @@ for (let i = 0; i < SPOTS; i++) {
 // through them.
 let rocksTex = null;
 let rockCount = 0;
-const rockState = spots.map((_, i) => ({ from: i % Math.max(ROCKS.length, 1), to: (i + 1) % Math.max(ROCKS.length, 1), at: rng.range(0, ROCK_HOLD) }));
+let rockGrid = [1, 1];
+let shapesTex = null;
+let shapeCount = 0;
+const rockState = spots.map((_, i) => ({ from: i % Math.max(ROCKS.length, 1), to: (i + 1) % Math.max(ROCKS.length, 1), base: i % Math.max(ROCKS.length, 1), at: rng.range(0, ROCK_HOLD) }));
 if (ROCKS.length && gl) {
   Promise.all(
     ROCKS.map(
@@ -409,15 +504,22 @@ if (ROCKS.length && gl) {
   ).then((imgs) => {
     const ok = imgs.filter(Boolean);
     if (!ok.length) return;
+    // A grid, not a strip: 25 rocks side by side would be 12800 px, past what many
+    // GPUs allow for one texture (8192 on Safari and phones), and then nothing shows.
     const side = 512;
+    const cols = Math.ceil(Math.sqrt(ok.length));
+    const rows = Math.ceil(ok.length / cols);
+    rockGrid = [cols, rows];
     const strip = document.createElement("canvas");
-    strip.width = side * ok.length;
-    strip.height = side;
+    strip.width = side * cols;
+    strip.height = side * rows;
     const ink = strip.getContext("2d");
     ok.forEach((img, i) => {
       // Each photograph cropped square and scaled to fit its slot.
       const s = Math.min(img.naturalWidth, img.naturalHeight);
-      ink.drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, i * side, 0, side, side);
+      const x = (i % cols) * side;
+      const y = Math.floor(i / cols) * side;
+      ink.drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, x, y, side, side);
     });
     rocksTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, rocksTex);
@@ -427,9 +529,11 @@ if (ROCKS.length && gl) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, strip);
     rockCount = ok.length;
+    loadShapes(ROCKS.filter((_, i) => imgs[i]));
     rockState.forEach((r, i) => {
       r.from = i % rockCount;
       r.to = (i + 1) % rockCount;
+      r.base = i % rockCount; // the rock whose shape this stone keeps
     });
   });
 }
@@ -495,15 +599,37 @@ if (window.DeviceOrientationEvent) {
   }
 }
 
-// Space (or r): reseed. A fresh seed, a whole new run of designs, and the first of them
-// arriving at once.
-window.addEventListener("keydown", (e) => {
+// Space (or r), a click, or a tap: reseed. A fresh seed, a whole new run of designs, and
+// the first of them arriving at once.
+function reseed() {
   if (!animator) return;
+  animator = new FlameAnimator(makeRng(randomSeed()), S);
+  animator.newFlame(true);
+}
+window.addEventListener("keydown", (e) => {
   if (e.key === " " || e.key === "r" || e.key === "R") {
     e.preventDefault();
-    animator = new FlameAnimator(makeRng(randomSeed()), S);
-    animator.newFlame(true);
+    reseed();
   }
+});
+// A tap is a press that neither moves much nor lasts long: a finger dragged across the
+// page is moving the light, not asking for a new design. Links and buttons keep their
+// own clicks (Amanda, 2026-10-07).
+let press = null;
+const onControl = (e) => e.target instanceof Element && e.target.closest("a, button");
+window.addEventListener("pointerdown", (e) => {
+  if (onControl(e)) return;
+  press = { x: e.clientX, y: e.clientY, at: performance.now() };
+});
+window.addEventListener("pointerup", (e) => {
+  if (!press || onControl(e)) return;
+  const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
+  const held = performance.now() - press.at;
+  press = null;
+  if (moved < 12 && held < 400) reseed();
+});
+window.addEventListener("pointercancel", () => {
+  press = null;
 });
 
 // Full screen on the f key.
@@ -514,6 +640,65 @@ function toggleFull() {
 window.addEventListener("keydown", (e) => {
   if (e.key === "f" || e.key === "F") toggleFull();
 });
+
+// The mark and the words lie on the field like thin stickers, and their shadows fall the
+// way the stones' do: away from the light, longer when it is low. The field's y points up
+// the screen; in portrait the field is turned, so the vector turns with it. Set as CSS
+// variables the stylesheet uses, only when they move enough to see.
+const shadow = { x: NaN, y: NaN, b: NaN };
+function castTextShadow(lx, ly, lz) {
+  // The letters stand off the field about two and a half times their old height, so
+  // the shadow is distinct (Amanda, 2026-10-07); a low light throws it longer.
+  const reach = Math.min(1 / Math.max(lz, 0.3), 2.6) * 2.5;
+  let dx = -lx * reach;
+  let dy = ly * reach; // CSS y points down
+  if (view.height > view.width) [dx, dy] = [ly * reach, lx * reach]; // portrait: the field is turned
+  const b = 0.2 + Math.hypot(dx, dy) * 0.2; // a firm edge, like the stones' shadows
+  // Restyling the title is compositor work on top of the frame, so only for a move
+  // one can see.
+  if (Math.abs(dx - shadow.x) < 0.05 && Math.abs(dy - shadow.y) < 0.05 && Math.abs(b - shadow.b) < 0.05) return;
+  shadow.x = dx;
+  shadow.y = dy;
+  shadow.b = b;
+  const st = document.documentElement.style;
+  st.setProperty("--shadow-x", `${dx.toFixed(2)}em`);
+  st.setProperty("--shadow-y", `${dy.toFixed(2)}em`);
+  st.setProperty("--shadow-blur", `${b.toFixed(2)}em`);
+}
+
+// The rocks' silhouettes, from img/rocks/shapes.json (the scanner tool writes it): one
+// row per rock, 64 radii round the compass in red and the mean in green. Rocks without
+// a shape get a circle, so the picture still lands where the stone is.
+function loadShapes(names) {
+  fetch("img/rocks/shapes.json")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((shapes) => {
+      if (!shapes || !gl) return;
+      const angles = 64;
+      const data = new Uint8Array(angles * names.length * 4);
+      names.forEach((name, row) => {
+        const shape = shapes[name.split("/").pop()];
+        const radii = shape ? shape.r : Array(angles).fill(0.8);
+        const mean = shape ? shape.mean : 0.8;
+        for (let k = 0; k < angles; k++) {
+          const at = (row * angles + k) * 4;
+          data[at] = Math.round(Math.min(1, Math.max(0, radii[k])) * 255);
+          data[at + 1] = Math.round(mean * 255);
+          data[at + 2] = Math.round(Math.min(...radii) * 255);
+          data[at + 3] = 255;
+        }
+      });
+      shapesTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, shapesTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); // the compass goes round
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, angles, names.length, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+      shapeCount = names.length;
+    })
+    .catch(() => {});
+}
 
 // ----------------------------------------------------------------- the frames
 
@@ -529,10 +714,17 @@ function fit() {
 }
 window.addEventListener("resize", fit);
 
+// Thirty frames a second is plenty for a picture that changes this slowly, and half
+// the battery of sixty (a quarter on a 120 Hz screen); and nothing at all while the tab
+// is hidden (the audit of 2026-10-07).
+const FRAME_MS = 1000 / 30;
 let last = performance.now();
+let drawnAt = -1e9;
 function frame(now) {
   requestAnimationFrame(frame);
-  if (!gl || !flame || !program) return;
+  if (!gl || !flame || !program || document.hidden) return;
+  if (now - drawnAt < FRAME_MS - 1) return;
+  drawnAt = now;
   const dt = clamp((now - last) / 1000, 0.001, 0.1);
   last = now;
   t += dt;
@@ -547,6 +739,7 @@ function frame(now) {
   const ly = -Math.cos(light.az) * Math.cos(light.el);
   const lz = Math.sin(light.el);
   fit();
+  castTextShadow(lx, ly, lz);
   gl.viewport(0, 0, view.width, view.height);
   gl.useProgram(program);
   gl.activeTexture(gl.TEXTURE0);
@@ -565,9 +758,14 @@ function frame(now) {
   gl.bindTexture(gl.TEXTURE_2D, rocksTex || tex);
   gl.uniform1i(u("uRocks"), 1);
   gl.uniform1f(u("uRockN"), rockCount);
-  gl.uniform3fv(
+  gl.uniform2f(u("uRockGrid"), rockGrid[0], rockGrid[1]);
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, shapesTex || tex);
+  gl.uniform1i(u("uShapes"), 2);
+  gl.uniform1f(u("uShapeN"), shapeCount);
+  gl.uniform4fv(
     u("uRock"),
-    rockState.flatMap((r) => [r.from, r.to, clamp((r.at - ROCK_HOLD) / ROCK_FADE, 0, 1)]),
+    rockState.flatMap((r) => [r.from, r.to, clamp((r.at - ROCK_HOLD) / ROCK_FADE, 0, 1), r.base]),
   );
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }

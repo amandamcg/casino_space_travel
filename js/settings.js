@@ -10,7 +10,7 @@
 export const SCHEMA = [
   { group: "Render" },
   { key: "pointsTex", label: "Points (texture side)", min: 128, max: 1024, step: 64, def: 384,
-    note: "points = side squared: 256 = 65k, 512 = 262k, 1024 = 1M. Biggest cost on the Pi." },
+    note: "points = side squared: 256 = 65k, 512 = 262k, 1024 = 1M. Biggest cost on the Pi. With one picture across the projectors the side grows by root 2 (384 becomes 576) so the colours stay the same." },
   { key: "iters", label: "Iterations per frame", min: 1, max: 4, step: 1, def: 2,
     note: "More = denser image per frame, proportionally more GPU." },
   { key: "decay", label: "Trail decay", min: 0.5, max: 0.995, step: 0.005, def: 0.7,
