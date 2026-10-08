@@ -13,6 +13,7 @@ import { FlameAnimator, setLikedPalettes } from "./genome.js";
 import { FlameRenderer } from "./flame.js";
 import { makeRng, randomSeed, clamp } from "./rng.js";
 import { defaults } from "./settings.js";
+import { cornersToCss } from "./mapping.js";
 
 const W = 1024;
 const H = 768;
@@ -110,6 +111,9 @@ precision highp float;
 #define N ${SPOTS}
 uniform vec2 uRes;
 uniform float uPortrait;      // 1 on a tall screen: the field and everything on it turn 90 degrees
+uniform vec4 uPlate[2];       // the plates under the words, on the field (unturned units): middle x, y, half width, half height
+uniform float uPlateR[2];     // a plate's corner radius in field units
+uniform float uPlatePx;       // screen pixels per field unit at the plate, for its rim and shadow sizes
 uniform sampler2D uPic;
 uniform vec3 uLight;          // toward the light
 uniform vec4 uSpot[N];        // x, y, height above the field, radius
@@ -137,6 +141,36 @@ vec3 pic(vec2 p) {   // the picture at a point of the field, p in field units, s
   if (abs(q.x) > FIELD.x || abs(q.y) > FIELD.y) return vec3(0.0);
   vec2 edge = smoothstep(vec2(0.0), vec2(0.12), FIELD - abs(q));
   return texture(uPic, vec2(uv.x, 1.0 - uv.y)).rgb * edge.x * edge.y;
+}
+
+// The picture blurred, for the frosted plate: the texture's coarser levels, which the
+// page builds each frame.
+vec3 picBlur(vec2 p) {
+  vec2 q = unturned(p);
+  vec2 uv = q / FIELD * 0.5 + 0.5;
+  return textureLod(uPic, vec2(uv.x, 1.0 - uv.y), 2.2).rgb;
+}
+
+// How far a point of the field (unturned units) is outside plate i (negative inside), and
+// the way out.
+float plateDist(int i, vec2 fp, out vec2 outward) {
+  vec4 pl = uPlate[i];
+  vec2 h = pl.zw;
+  vec2 q = fp - pl.xy;
+  float r = min(uPlateR[i], min(h.x, h.y));
+  if (r >= min(h.x, h.y) - 1e-4) {
+    // An oval: the distance scaled by the half sizes, near enough for a rim.
+    vec2 e = q / h;
+    float m = length(e);
+    outward = normalize(vec2(e.x / h.x, e.y / h.y) + 1e-6);
+    return (m - 1.0) * min(h.x, h.y);
+  }
+  // A rounded rectangle.
+  vec2 a = abs(q) - (h - r);
+  vec2 c = max(a, 0.0);
+  float d = length(c) + min(max(a.x, a.y), 0.0) - r;
+  outward = normalize(sign(q) * (a.x > a.y ? vec2(1.0, 0.0) : vec2(0.0, 1.0)) + sign(q) * c / max(length(c), 1e-6) + 1e-6);
+  return d;
 }
 
 // One photograph from the strip, at uv within it.
@@ -419,7 +453,51 @@ void main() {
     float tt = -eye.z / d.z;
     if (d.z < 0.0 && tt > 0.0) {
       vec2 p = eye.xy + d.xy * tt;
-      col = pic(p) * (0.25 + 0.75 * lit(p));
+      col = pic(p);
+      // The frosted plates under the words lie flat on the field: the picture blurred and
+      // whitened there, a thin lit rim on the light's side and a dark one on the far side,
+      // and their own shadow a sliver past the far edge with no gap; the stones' shadows
+      // fall across them like the field (Amanda, 2026-10-08).
+      // The plates lie on the field, so everything about them is in field units and in
+      // the field's perspective, as the stones are (Amanda, 2026-10-08: the perspective
+      // was off while the plate was a screen rectangle).
+      vec2 fq = unturned(p);
+      vec2 L2 = normalize(unturned(uLight.xy) + vec2(1e-6));
+      float ppu = max(uPlatePx, 1.0);
+      float plateShade = 0.0; // how much the plates' shadows cover this point
+      for (int i = 0; i < 2; i++) {
+        if (uPlate[i].z <= 0.0) continue;
+        vec2 outward;
+        float d = plateDist(i, fq, outward);
+        if (d > 48.0 / ppu) continue;
+        float facing = dot(outward, L2); // 1 on the light's side, -1 on the far side
+        float aa = fwidth(d) * 0.7;
+        if (d < 0.0) {
+          // Grey smoked plexiglass (Amanda, 2026-10-08): the picture blurred and dimmed
+          // behind it, greyed a little, with a lit rim on the light's side and a darker
+          // one on the far side.
+          vec3 frost = mix(picBlur(p) * 0.55, vec3(0.40, 0.45, 0.54), 0.3); // a slightly blue grey
+          float rim = smoothstep(-3.0 / ppu, 0.0, d);
+          frost += rim * max(facing, 0.0) * 0.18;
+          frost *= 1.0 - rim * max(-facing, 0.0) * 0.5;
+          col = mix(col, frost, smoothstep(aa, -aa, d)); // a crisp edge, one pixel soft
+        } else {
+          // The shadow the plate's thickness throws: the plate's outline swept away from
+          // the light over its height, longer the lower the light, as the stones' shadows
+          // are (Amanda, 2026-10-08: "taller so its shadow is longer"; a copy at the far
+          // end alone left a notch at the corners). A point is in it when, moved back
+          // toward the light by any part of that height, it lands inside the plate.
+          float len = (26.0 / ppu) * clamp(1.0 / max(uLight.z, 0.3), 1.0, 2.6);
+          vec2 back;
+          float nearest = 1e9;
+          for (int k = 1; k <= 12; k++) {
+            nearest = min(nearest, plateDist(i, fq + L2 * (len * float(k) / 12.0), back));
+          }
+          plateShade = max(plateShade, 1.0 - smoothstep(-aa, aa, nearest));
+        }
+      }
+      // The plates' shadows darken the field exactly as the stones' do: one shadow term.
+      col *= 0.25 + 0.75 * lit(p) * (1.0 - plateShade);
     }
   }
   // A faint vignette, and the gamma.
@@ -454,7 +532,7 @@ if (gl && flame) {
   gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
   tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -472,8 +550,12 @@ const looks = [];
 // footprint in field units, a little above the middle; on a tall screen the field is
 // turned, so the block is tall and narrow in field terms instead.
 const tall = window.innerHeight > window.innerWidth; // the canvas is not yet fitted here
-const TITLE = tall ? { hx: 0.32, hy: 0.42, cy: 0.05 } : { hx: 0.6, hy: 0.3, cy: 0.05 };
-const underTitle = (x, y, base) => Math.abs(x) < TITLE.hx + base && Math.abs(y - TITLE.cy) < TITLE.hy + base;
+// The plate under the words, mark, dates and foot together, is wider than they are:
+// no stone may sit under it (Amanda, 2026-10-08). In field units, as it lands on a wide
+// screen and on a tall one, where the field is turned.
+const PLATES = tall ? [{ cx: 0.05, cy: 0, hx: 0.54, hy: 0.52 }] : [{ cx: 0, cy: 0.05, hx: 0.98, hy: 0.62 }];
+const underTitle = (x, y, base) => PLATES.some((p) => Math.abs(x - p.cx) < p.hx + base && Math.abs(y - p.cy) < p.hy + base);
+const TITLE = PLATES[0];
 for (let i = 0; i < SPOTS; i++) {
   // Anywhere on the screen, not on top of another, not under the title.
   const base = rng.range(0.19, 0.3); // the outline reaches 0.7 to 0.95 of this
@@ -484,7 +566,12 @@ for (let i = 0; i < SPOTS; i++) {
     y = rng.range(-0.7, 0.95);
     if (!underTitle(x, y, base) && spots.every((q) => Math.hypot(q[0] - x, q[1] - y) > 0.62)) break;
   }
-  if (underTitle(x, y, base)) x = Math.sign(x || 1) * (TITLE.hx + base + 0.05); // out from under it
+  if (underTitle(x, y, base)) {
+    // Out from under the title's plate, sideways; a spot that then lands under the
+    // foot's is rare and goes up instead.
+    x = Math.sign(x || 1) * (TITLE.hx + base + 0.05);
+    if (underTitle(x, y, base)) y = 0.9;
+  }
   spots.push([x, y, base * 0.9, base]); // wide, low stones
   looks.push([rng.range(1.6, 2.6), rng.range(-0.6, 0.6), rng.range(-0.6, 0.6), rng.range(1.0, 5.3)]);
 }
@@ -652,25 +739,47 @@ window.addEventListener("keydown", (e) => {
 // way the stones' do: away from the light, longer when it is low. The field's y points up
 // the screen; in portrait the field is turned, so the vector turns with it. Set as CSS
 // variables the stylesheet uses, only when they move enough to see.
-const shadow = { x: NaN, y: NaN, b: NaN };
+// The words' shadow (Amanda, 2026-10-08: "take the plexiglass off and put this shadow on
+// the letters"): black copies of the title block, stepped away from the light over the
+// letters' height, in one group at the stones' shadow darkness behind the words. The
+// group has the block's own perspective transform, so the steps foreshorten on the field
+// as the stones' shadows do. Offsets in the block's own pixels, moved only for a change
+// one can see.
+const GHOSTS = 10;
+const ghost = document.createElement("div");
+ghost.id = "ghost";
+const ghostCopies = [];
+function makeGhosts() {
+  const title = document.getElementById("title");
+  if (!title || ghostCopies.length) return;
+  for (let k = 0; k < GHOSTS; k++) {
+    const copy = title.cloneNode(true);
+    copy.removeAttribute("id");
+    copy.classList.add("ghost-copy");
+    copy.setAttribute("aria-hidden", "true");
+    for (const el of copy.querySelectorAll("[id]")) el.removeAttribute("id");
+    ghost.append(copy);
+    ghostCopies.push(copy);
+  }
+  title.before(ghost);
+}
+const shadow = { x: NaN, y: NaN };
 function castTextShadow(lx, ly, lz) {
-  // The letters stand off the field about two and a half times their old height, so
-  // the shadow is distinct (Amanda, 2026-10-07); a low light throws it longer.
-  const reach = Math.min(1 / Math.max(lz, 0.3), 2.6) * 2.5;
-  let dx = -lx * reach;
-  let dy = ly * reach; // CSS y points down
-  if (view.height > view.width) [dx, dy] = [ly * reach, lx * reach]; // portrait: the field is turned
-  const b = 0.2 + Math.hypot(dx, dy) * 0.2; // a firm edge, like the stones' shadows
-  // Restyling the title is compositor work on top of the frame, so only for a move
-  // one can see.
-  if (Math.abs(dx - shadow.x) < 0.05 && Math.abs(dy - shadow.y) < 0.05 && Math.abs(b - shadow.b) < 0.05) return;
+  makeGhosts();
+  // The letters stand off the field like the plate did: the shadow's length, longer the
+  // lower the light.
+  const len = 26 * Math.min(Math.max(1 / Math.max(lz, 0.3), 1), 2.6);
+  let dx = -lx * len;
+  let dy = ly * len; // CSS y points down
+  if (view.height > view.width) [dx, dy] = [ly * len, lx * len]; // portrait: the field is turned
+  if (Math.abs(dx - shadow.x) < 0.5 && Math.abs(dy - shadow.y) < 0.5) return;
   shadow.x = dx;
   shadow.y = dy;
-  shadow.b = b;
-  const st = document.documentElement.style;
-  st.setProperty("--shadow-x", `${dx.toFixed(2)}em`);
-  st.setProperty("--shadow-y", `${dy.toFixed(2)}em`);
-  st.setProperty("--shadow-blur", `${b.toFixed(2)}em`);
+  ghostCopies.forEach((copy, k) => {
+    const f = (k + 1) / GHOSTS;
+    copy.style.setProperty("--gx", `${(dx * f).toFixed(1)}px`);
+    copy.style.setProperty("--gy", `${(dy * f).toFixed(1)}px`);
+  });
 }
 
 // The rocks' silhouettes, from img/rocks/shapes.json (the scanner tool writes it): one
@@ -707,6 +816,103 @@ function loadShapes(names) {
     .catch(() => {});
 }
 
+
+// ------------------------------------------------- the plate lies on the field
+
+// The camera, as the shader has it, so the page can put a point of the field on the
+// screen and back.
+const CAM = (() => {
+  const norm = (v) => {
+    const l = Math.hypot(...v);
+    return v.map((x) => x / l);
+  };
+  const f = norm([0, 0.25, -1]);
+  const r = norm([f[1], -f[0], 0]); // cross(f, up)
+  const u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]]; // cross(r, f)
+  return { eye: [0, -0.3, 1.3], f, r, u };
+})();
+function screenToField(sx, sy) {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const ax = ((sx / W) * 2 - 1) * (W / H);
+  const ay = -((sy / H) * 2 - 1);
+  const d = [0, 1, 2].map((k) => CAM.f[k] + ax * CAM.r[k] * 0.7 + ay * CAM.u[k] * 0.7);
+  const t = -CAM.eye[2] / d[2];
+  return [CAM.eye[0] + d[0] * t, CAM.eye[1] + d[1] * t];
+}
+function fieldToScreen(px, py) {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const v = [px - CAM.eye[0], py - CAM.eye[1], -CAM.eye[2]];
+  const dot = (a) => a[0] * v[0] + a[1] * v[1] + a[2] * v[2];
+  const z = dot(CAM.f);
+  const ax = dot(CAM.r) / z / 0.7;
+  const ay = dot(CAM.u) / z / 0.7;
+  return [((ax / (W / H) + 1) / 2) * W, ((1 - ay) / 2) * H];
+}
+// The field's "unturned" units: on a tall screen the field is turned 90 degrees, and the
+// plate and the words are laid out in the turned frame so they stay upright.
+const unturn = (p, portrait) => (portrait ? [p[1], -p[0]] : p);
+const turn = (q, portrait) => (portrait ? [-q[1], q[0]] : q);
+
+// The plate: a rounded rectangle on the field under the title block, a little wider and
+// taller than the words, and the words laid onto the field by a perspective transform so
+// they lie on the plate, as the stones lie on the field. Worked out from the block's own
+// size, which changes only with the window.
+const PLATE_ON = false;
+let laid = { key: "", rect: [0, 0, 0, 0], radius: 0, ppu: 1 };
+function layPlate(portrait) {
+  const el = document.getElementById("title");
+  if (!el) return laid;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  const key = `${W}x${H}:${w}x${h}:${portrait}`;
+  if (key === laid.key || !w) return laid;
+  // The block's own place, as the stylesheet puts it before any transform: centred, a
+  // little above the middle.
+  const cx = W / 2;
+  const cy = H / 2 - 0.08 * h;
+  const q = (sx, sy) => unturn(screenToField(sx, sy), portrait);
+  const extent = (halfW, halfH) => {
+    const pts = [q(cx - halfW, cy), q(cx + halfW, cy), q(cx, cy - halfH), q(cx, cy + halfH)];
+    const xs = pts.map((v) => v[0]);
+    const ys = pts.map((v) => v[1]);
+    return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2, hx: (Math.max(...xs) - Math.min(...xs)) / 2, hy: (Math.max(...ys) - Math.min(...ys)) / 2 };
+  };
+  // The plate, padded; the words, exact.
+  const padW = portrait ? 0.49 * W : (w / 2) * 1.1;
+  const padH = portrait ? h / 2 + 44 : (h / 2) * 1.5;
+  const plate = extent(padW, padH);
+  const words = extent(w / 2, h / 2);
+  const ppu = 1 / Math.hypot(...[0, 1].map((k) => q(cx + 1, cy)[k] - q(cx, cy)[k]));
+  // The words' rectangle on the field, back to the screen as four corners, and the block
+  // fitted onto them.
+  const corners = [
+    [words.x - words.hx, words.y + words.hy],
+    [words.x + words.hx, words.y + words.hy],
+    [words.x + words.hx, words.y - words.hy],
+    [words.x - words.hx, words.y - words.hy],
+  ].map((c) => fieldToScreen(...turn(c, portrait)));
+  const tl = corners.reduce((a, b) => (a[0] + a[1] <= b[0] + b[1] ? a : b));
+  const br = corners.reduce((a, b) => (a[0] + a[1] >= b[0] + b[1] ? a : b));
+  const tr = corners.reduce((a, b) => (a[0] - a[1] >= b[0] - b[1] ? a : b));
+  const bl = corners.reduce((a, b) => (a[0] - a[1] <= b[0] - b[1] ? a : b));
+  const lie = cornersToCss(w, h, [tl, tr, br, bl]);
+  el.style.left = "0";
+  el.style.top = "0";
+  el.style.transformOrigin = "0 0";
+  el.style.transform = lie;
+  ghost.style.width = `${w}px`;
+  ghost.style.height = `${h}px`;
+  ghost.style.transform = lie;
+  // The plate is off (Amanda, 2026-10-08: the shadow is on the letters instead); its
+  // size is kept so it can come back.
+  laid = { key, rect: PLATE_ON ? [plate.x, plate.y, plate.hx, plate.hy] : [0, 0, 0, 0], radius: 14 / ppu, ppu };
+  return laid;
+}
+
 // ----------------------------------------------------------------- the frames
 
 function fit() {
@@ -736,6 +942,12 @@ function frame(now) {
   last = now;
   t += dt;
   frameNo++;
+  // The first frame: a few turns of the flame first, so the picture is already there
+  // rather than building up from black over the first second.
+  if (frameNo === 1) {
+    for (let k = 0; k < 8; k++) drawFlame(1 / 30);
+    performance.mark("first-frame");
+  }
   drawFlame(dt);
   stepRocks(dt);
   // Ease the light toward where it is wanted.
@@ -752,10 +964,15 @@ function frame(now) {
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, flameCanvas);
+  gl.generateMipmap(gl.TEXTURE_2D); // the coarser levels blur the picture under the plates
   gl.uniform1i(u("uPic"), 0);
   gl.uniform2f(u("uRes"), view.width, view.height);
   const portrait = view.height > view.width;
   gl.uniform1f(u("uPortrait"), portrait ? 1 : 0);
+  const plate = layPlate(portrait);
+  gl.uniform4fv(u("uPlate"), [...plate.rect, 0, 0, 0, 0]);
+  gl.uniform1fv(u("uPlateR"), [plate.radius, 0]);
+  gl.uniform1f(u("uPlatePx"), plate.ppu * (view.width / window.innerWidth));
   gl.uniform3f(u("uLight"), lx, ly, lz);
   // On a tall screen the stones turn with the field: (x, y) on the wide field becomes (-y, x).
   gl.uniform4fv(u("uSpot"), spots.flatMap((q) => (portrait ? [-q[1], q[0], q[2], q[3]] : q)));

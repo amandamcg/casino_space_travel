@@ -5,19 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Casino Space Travel</title>
 <meta name="description" content="A fractal, live, with spots that cast shadows. Move the mouse or tilt the phone to move the light.">
+<!-- The modules the page imports, fetched at once rather than one hop after another, and
+     the two small files it reads at the start: a slow connection otherwise waits three
+     round trips before anything draws (Amanda, 2026-10-08: "a delay on load"). -->
+<link rel="modulepreload" href="js/experience.js">
+<link rel="modulepreload" href="js/genome.js">
+<link rel="modulepreload" href="js/flame.js">
+<link rel="modulepreload" href="js/palettes.js">
+<link rel="modulepreload" href="js/rng.js">
+<link rel="modulepreload" href="js/settings.js">
+<link rel="preload" href="js/liked-palettes.json" as="fetch" crossorigin="anonymous">
+<link rel="preload" href="img/rocks/shapes.json" as="fetch" crossorigin="anonymous">
 <style>
   /* ABC Areal Mono by Dinamo, under Amanda's licence; only the one weight the page uses. */
   @font-face { font-family: "ABC Areal Mono"; src: url(fonts/ABCArealMono-Regular.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "ABC Areal Mono"; src: url(fonts/ABCArealMono-Bold.woff2) format("woff2"); font-weight: 700; font-display: swap; }
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: #cfd4dc; font: 14px/1.4 "ABC Areal Mono", ui-monospace, Menlo, monospace; }
   #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  #foot { position: fixed; left: 0; right: 0; bottom: max(30px, calc(env(safe-area-inset-bottom) + 22px)); margin: 0; padding: 0 12px; display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 22px; font: 13px/1.9 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.26em; opacity: 0.9; color: #fff; text-shadow: 0 0 6px rgba(0, 0, 0, 0.7), var(--shadow-x) var(--shadow-y) var(--shadow-blur) rgba(0, 0, 0, 0.75); }
-  #foot a { color: #fff; text-decoration: none; }
-  #foot span { white-space: nowrap; }
+  /* The foot sits in the title block with the mark and the dates, all on one plate. */
+  .foot { margin: 0; padding: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 22px; font: 700 17.2px/1.9 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.21em; opacity: 0.9; color: #fff; text-shadow: none; pointer-events: none; }
+  .foot a { color: #fff; text-decoration: none; }
+  .foot span { white-space: nowrap; }
   #hint { position: fixed; left: 0; right: 0; bottom: max(70px, calc(env(safe-area-inset-bottom) + 60px)); text-align: center; pointer-events: none; padding: 0 16px; display: none; }
   #hint.stay { display: block; }
   /* The hand-lettered mark in the middle of the screen, the dates under it. The mark is
      the traced SVG as a mask, so the page colours it. */
-  #title { position: fixed; left: 0; right: 0; top: 50%; transform: translateY(-58%); display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 3vw, 26px); pointer-events: none; padding: 0 16px; }
+  #title, .ghost-copy { position: fixed; left: 50%; top: 50%; width: fit-content; max-width: 100%; transform: translate(-50%, -58%); display: flex; flex-direction: column; align-items: center; gap: clamp(48px, 9vw, 90px); pointer-events: none; padding: 0 16px; z-index: 1; isolation: isolate; box-sizing: border-box; }
+  /* The words lie on the field in its perspective (experience.js lays the block there with
+     the shader's camera) and cast a shadow like the stones' (Amanda, 2026-10-08): black
+     copies of the block, offset step by step away from the light, in one group at the
+     stones' shadow darkness, behind the words. */
+  /* Soft-edged like the stones' shadows, which come from three lights a little apart; a
+     touch lighter than theirs (Amanda, 2026-10-08). */
+  #ghost { position: fixed; left: 0; top: 0; opacity: 0.42; filter: blur(2.5px); pointer-events: none; transform-origin: 0 0; z-index: 0; }
+  .ghost-copy { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; transform: none !important; pointer-events: none; }
+  /* The mark stands tallest; the small type stands a third as high, or its shadow would
+     be longer than its letters and smear them. */
+  .ghost-copy .mark { transform: translate(var(--gx, 0px), var(--gy, 0px)); }
+  .ghost-copy .dates, .ghost-copy .foot { transform: translate(calc(var(--gx, 0px) * 0.3), calc(var(--gy, 0px) * 0.3)); }
+  .ghost-copy .mark::before { background: #000; opacity: 1; }
+  .ghost-copy .dates, .ghost-copy .foot, .ghost-copy a { color: #000; opacity: 1; text-decoration-color: #000; }
+  .foot a { pointer-events: auto; }
   /* The shadows of the mark and the words follow the light, like the stones' (the page
      sets the variables each frame), over a close dark halo that keeps the white letters
      readable on any field (Amanda, 2026-10-07). The mark is a mask, so its shadows are
@@ -25,24 +53,24 @@
   :root { --shadow-x: 0em; --shadow-y: -0.4em; --shadow-blur: 0.6em; }
   /* The mask sits on an inner layer: a mask is applied after a filter, so on the same
      element it would cut the shadow away with everything else outside the letters. */
-  #mark { width: min(520px, 78vw); aspect-ratio: 1256 / 358; font-size: 16px;
-    filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.7)) drop-shadow(var(--shadow-x) var(--shadow-y) var(--shadow-blur) rgba(0, 0, 0, 0.75)); }
-  #mark::before { content: ""; display: block; width: 100%; height: 100%; background: #fff; opacity: 0.92;
+  .mark { width: min(686px, 90vw); aspect-ratio: 1256 / 358; font-size: 16px;
+    filter: none; }
+  .mark::before { content: ""; display: block; width: 100%; height: 100%; background: #ff2a96; opacity: 0.92;
     -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
   /* The dates: one paragraph each, lines tight within an entry, a clear gap between
      entries. On a desktop 13px on one line each; on a phone at least 12pt (16px),
      spaced less wide so an entry wraps to two lines at most. */
-  #dates { margin: 0; text-align: center; color: #fff; opacity: 0.9; font: 13px/1.35 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.26em; text-transform: lowercase; white-space: nowrap; text-shadow: 0 0 6px rgba(0, 0, 0, 0.7), var(--shadow-x) var(--shadow-y) var(--shadow-blur) rgba(0, 0, 0, 0.75); }
-  #dates p { margin: 0; }
-  #dates p + p { margin-top: 0.6em; }
+  .dates { margin: 0; text-align: center; color: #fff; opacity: 0.9; font: 700 17.2px/1.35 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.21em; text-transform: lowercase; white-space: nowrap; text-shadow: none; }
+  .dates p { margin: 0; }
+  .dates p + p { margin-top: 0.6em; }
   /* Links in the dates: the title block lets the mouse through to the light, so only the
      links themselves take clicks; a thin underline says they are links. */
-  #dates a { color: inherit; pointer-events: auto; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; text-decoration-color: rgba(255, 255, 255, 0.55); }
+  .dates a { color: inherit; pointer-events: auto; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; text-decoration-color: rgba(255, 255, 255, 0.55); }
   @media (max-width: 760px) {
-    #title { padding: 0 8px; }
-    #dates { font-size: 16px; letter-spacing: 0; white-space: normal; text-wrap: balance; max-width: 96vw; }
-    #dates p + p { margin-top: 0.75em; }
-    #foot { font-size: 16px; letter-spacing: 0.03em; }
+    #title, .ghost-copy { padding: 0 4px; width: 100vw; }
+    .dates { font-size: 21px; letter-spacing: 0; white-space: normal; text-wrap: balance; max-width: 96vw; }
+    .dates p + p { margin-top: 0.75em; }
+    .foot { font-size: 21px; letter-spacing: 0.024em; }
   }
   #enable { position: fixed; left: 50%; top: 78%; transform: translate(-50%, -50%); font: inherit; background: #14161a; color: #eef; border: 1px solid #3c4352; padding: 12px 18px; }
 </style>
@@ -50,16 +78,17 @@
 <body>
 <canvas id="view" aria-label="A fractal with spots that cast shadows"></canvas>
 <div id="title">
-  <div id="mark" role="img" aria-label="Casino Space Travel"></div>
-  <div id="dates">
+  <div class="mark" role="img" aria-label="Casino Space Travel"></div>
+  <div class="dates">
     <p>nov 7 at 7pm - experimental sounds / puppet show @ beatnik</p>
     <p>dec 12 to jan 3 weekends - interactive exhibit with <a href="http://feralgirlcollective.net/" target="_blank" rel="noopener">ferals</a> @ <a href="https://lamatadoragallery.org/" target="_blank" rel="noopener">la mat</a></p>
     <p>jan 1 at tbd time - sound bath @ <a href="https://lamatadoragallery.org/" target="_blank" rel="noopener">la mat</a></p>
   </div>
+  <p class="foot"><span><a href="https://casinospacetravel.bandcamp.com/" target="_blank" rel="noopener">bandcamp</a> • <a href="mailto:casinospacetravelmusic@protonmail.com">email</a></span></p>
 </div>
 <p id="hint"></p>
 <button id="enable" hidden>Tap to let the page use your phone's tilt</button>
-<p id="foot"><span><a href="https://casinospacetravel.bandcamp.com/" target="_blank" rel="noopener">bandcamp</a> • <a href="mailto:casinospacetravelmusic@protonmail.com">email</a></span></p>
+
 <script type="module" src="js/experience.js"></script>
 </body>
 </html>
