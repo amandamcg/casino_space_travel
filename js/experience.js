@@ -75,6 +75,7 @@ let t = 0;
 
 function drawFlame(dt) {
   const genome = animator.update(dt, 0, 0.5);
+  genomeNow = genome;
   tintLetters(genome.palette);
   const gc = genome.camera;
   cam.cx = gc.cx;
@@ -675,6 +676,40 @@ function stepRocks(dt) {
 // the phone's tilt says. Straight above by default.
 const light = { az: 0, el: 1.45, wantAz: 0, wantEl: 1.45 }; // overhead by default: shadows centred (Amanda, 2026-10-21)
 const aim = { x: 0, y: 0.15, wantX: 0, wantY: 0.15 }; // where the flashlight points on the screen
+
+// Thumbs up and down on the colours showing (Amanda, 2026-10-21): Y keeps the palette,
+// N bins it, into the show's palette store, when this page is opened from the show server
+// (http://localhost:8008/experience.html). On the public site the keys do nothing.
+let genomeNow = null;
+let said = 0;
+function say(text) {
+  hint.textContent = text;
+  hint.classList.add("stay");
+  clearTimeout(said);
+  said = setTimeout(() => hint.classList.remove("stay"), 2200);
+}
+function votePalette(keep) {
+  const g = genomeNow;
+  if (!g || !g.palette) return;
+  const hex = (i) => "#" + [0, 1, 2].map((k) => Math.round(clamp(g.palette[i * 3 + k], 0, 1) * 255).toString(16).padStart(2, "0")).join("");
+  const entry = { name: g.paletteName || "random", colors: [0, 64, 128, 192, 255].map(hex) };
+  fetch("/api/palettes")
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no store"))))
+    .then((store) => {
+      const same = (x) => x.name === entry.name && x.colors.join() === entry.colors.join();
+      const byName = (x) => x.name === entry.name && entry.name !== "random";
+      store.liked = (store.liked || []).filter((x) => !same(x) && !(keep ? false : byName(x)));
+      store.disliked = (store.disliked || []).filter((x) => !same(x) && !(keep ? byName(x) : false));
+      (keep ? store.liked : store.disliked).push(entry);
+      return fetch("/api/palettes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(store) });
+    })
+    .then((r) => say((keep ? "kept: " : "binned: ") + entry.name + (r.ok ? "" : " (not saved)")))
+    .catch(() => say("votes need the show server: open this page at localhost:8008"));
+}
+window.addEventListener("keydown", (e) => {
+  if (e.key === "y" || e.key === "Y") votePalette(true);
+  if (e.key === "n" || e.key === "N") votePalette(false);
+});
 
 // The letters take their colours from the palette (Amanda, 2026-10-21): the darkest
 // entry for the letters, the lightest for the lit rim. Read a few times a second.
