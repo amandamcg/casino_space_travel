@@ -37,14 +37,16 @@
      stones' shadow darkness, behind the words. */
   /* Soft-edged like the stones' shadows, which come from three lights a little apart; a
      touch lighter than theirs (Amanda, 2026-10-08). */
-  #ghost { position: fixed; left: 0; top: 0; opacity: 1; filter: blur(2.5px); pointer-events: none; transform-origin: 0 0; z-index: 0; }
+  #ghost { position: fixed; left: 0; top: 0; opacity: 1; filter: none; pointer-events: none; transform-origin: 0 0; z-index: 0; }
   .ghost-copy { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; transform: none !important; pointer-events: none; }
   /* The mark stands tallest; the small type stands a third as high, or its shadow would
      be longer than its letters and smear them. */
   .ghost-copy .mark { transform: translate(var(--gx, 0px), var(--gy, 0px)); }
   .ghost-copy .dates, .ghost-copy .foot { transform: translate(calc(var(--gx, 0px) * 0.3), calc(var(--gy, 0px) * 0.3)); }
-  .ghost-copy .mark::before { background: #000; opacity: 1; }
-  .ghost-copy .dates, .ghost-copy .foot, .ghost-copy a { color: #000; opacity: 1; text-decoration-color: #000; }
+  /* The extrusion, like a 3-D logo: solid faces in the palette's dark colour, each with the
+     same black keyline as the front (Amanda, 2026-10-21, the MTV mark). */
+  .ghost-copy .mark::before { background: var(--rim); opacity: 1; }
+  .ghost-copy .dates, .ghost-copy .foot, .ghost-copy a { color: var(--rim); opacity: 1; text-decoration-color: var(--rim); }
   .foot a { pointer-events: auto; }
   /* The shadows of the mark and the words follow the light, like the stones' (the page
      sets the variables each frame), over a close dark halo that keeps the white letters
@@ -55,17 +57,13 @@
      beam falls, the same circle the page lights on the field. */
   #title, #ghost { -webkit-mask-image: radial-gradient(circle at var(--aim-x) var(--aim-y), #000 0, #000 34vmax, transparent 85vmax); mask-image: radial-gradient(circle at var(--aim-x) var(--aim-y), #000 0, #000 34vmax, transparent 85vmax); }
   /* Lit from the light's side: a thin pale rim on the mark and the words, toward the light. */
-  .mark { position: relative; }
-  .mark::after { content: ""; position: absolute; inset: 0; background: var(--rim); opacity: 1; z-index: -1; transform: translate(var(--rim-x), var(--rim-y));
-    -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
-  #title .dates, #title .foot { color: var(--letters); text-shadow: calc(var(--rim-x) * 0.5) calc(var(--rim-y) * 0.5) 0 var(--rim), calc(var(--rim-x) * 0.25) calc(var(--rim-y) * 0.25) 0 var(--rim); }
-  #title .foot a { color: var(--letters); }
-  .ghost-copy .mark::after { display: none; }
+  #title .dates, #title .foot, #title .foot a { color: var(--letters); }
+  .dates, .foot { -webkit-text-stroke: 1px #000; paint-order: stroke fill; text-shadow: none; }
   /* The mask sits on an inner layer: a mask is applied after a filter, so on the same
      element it would cut the shadow away with everything else outside the letters. */
   .mark { width: min(686px, 90vw); aspect-ratio: 1256 / 358; font-size: 16px;
-    filter: none; }
-  .mark::before { content: ""; display: block; width: 100%; height: 100%; background: var(--letters); opacity: 0.96;
+    filter: drop-shadow(1.5px 0 0 #000) drop-shadow(-1.5px 0 0 #000) drop-shadow(0 1.5px 0 #000) drop-shadow(0 -1.5px 0 #000); }
+  .mark::before { content: ""; display: block; width: 100%; height: 100%; background: var(--letters); opacity: 1;
     -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
   /* The dates: one paragraph each, lines tight within an entry, a clear gap between
      entries. On a desktop 13px on one line each; on a phone at least 12pt (16px),
