@@ -124,6 +124,7 @@ uniform float uPlatePx;       // screen pixels per field unit at the plate, for 
 uniform sampler2D uPic;
 uniform vec3 uLight;          // toward the light
 uniform vec2 uAim;            // where the flashlight points, on the screen (-1..1)
+uniform vec3 uShadow;         // the colour of shadow: the palette's dark, the same as the letters' extrusion
 uniform vec4 uSpot[N];        // x, y, height above the field, radius
 uniform vec4 uLook[N];        // zoom, pan x, pan y, hue turn (radians)
 uniform float uTime;
@@ -505,7 +506,7 @@ void main() {
         }
       }
       // The plates' shadows darken the field exactly as the stones' do: one shadow term.
-      col *= lit(p) * (1.0 - plateShade); // shadows full black (Amanda, 2026-10-21)
+      col = mix(uShadow, col, lit(p) * (1.0 - plateShade)); // shadows in the palette's dark (Amanda, 2026-10-21)
     }
   }
   // Dark at the edges (Amanda, 2026-10-21), and the gamma.
@@ -670,6 +671,7 @@ const aim = { x: 0, y: 0.15, wantX: 0, wantY: 0.15 }; // where the flashlight po
 // The letters take their colours from the palette (Amanda, 2026-10-21): the darkest
 // entry for the letters, the lightest for the lit rim. Read a few times a second.
 let tintAt = 0;
+const shadowRgb = [0, 0, 0];
 function tintLetters(pal) {
   if (!pal || performance.now() - tintAt < 250) return;
   tintAt = performance.now();
@@ -687,6 +689,9 @@ function tintLetters(pal) {
   // Swapped (Amanda, 2026-10-21): the letters in the palette's lightest colour, the rim in its darkest.
   root.setProperty("--letters", css(light, 1));
   root.setProperty("--rim", css(dark, 0.55));
+  shadowRgb[0] = pal[dark] * 0.55;
+  shadowRgb[1] = pal[dark + 1] * 0.55;
+  shadowRgb[2] = pal[dark + 2] * 0.55;
 }
 
 // A double tap holds the beam in the middle of the space; another lets it follow again
@@ -1047,6 +1052,7 @@ function frame(now) {
   gl.uniform1f(u("uPlatePx"), plate.ppu * (view.width / window.innerWidth));
   gl.uniform3f(u("uLight"), lx, ly, lz);
   gl.uniform2f(u("uAim"), aim.x, aim.y);
+  gl.uniform3f(u("uShadow"), shadowRgb[0], shadowRgb[1], shadowRgb[2]);
   // On a tall screen the stones turn with the field: (x, y) on the wide field becomes (-y, x).
   gl.uniform4fv(u("uSpot"), spots.flatMap((q) => (portrait ? [-q[1], q[0], q[2], q[3]] : q)));
   gl.uniform4fv(u("uLook"), looks.flat());
