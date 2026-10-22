@@ -43,6 +43,12 @@ function fail(text) {
 // ----------------------------------------------------------------- the fractal
 
 const S = defaults();
+// On the site a visit is short, so the field keeps morphing: a morph of twenty to sixty
+// seconds, a breath of five to fifteen between (Amanda, 2026-10-21). The show keeps its own.
+S.morphMin = 20;
+S.morphMax = 60;
+S.holdMin = 5;
+S.holdMax = 15;
 // The palettes Amanda has liked in the show, a static copy (js/liked-palettes.json, from
 // show 8/data/palettes.json), so the page draws from the same pool as the gallery
 // (Amanda, 2026-10-08). Without the file, the built-in palettes alone.
