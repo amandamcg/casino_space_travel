@@ -1079,5 +1079,8 @@ function frame(now) {
     rockState.flatMap((r) => [r.from, r.to, clamp((r.at - ROCK_HOLD) / ROCK_FADE, 0, 1), r.base]),
   );
   gl.drawArrays(gl.TRIANGLES, 0, 3);
+  // Fade the page in once a few frames are drawn and the type is ready, so nothing is
+  // seen settling into place (Amanda, 2026-10-21).
+  if (frameNo === 3) (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => document.body.classList.add("in"));
 }
 requestAnimationFrame(frame);
