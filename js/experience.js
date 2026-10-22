@@ -574,8 +574,9 @@ for (let i = 0; i < SPOTS; i++) {
   let y = 0;
   for (let tries = 0; tries < 80; tries++) {
     // Inside the screen by a stone's width, so no stone is cut off at an edge (Amanda, 2026-10-21).
-    x = rng.range(-1.45 + base * 1.4, 1.45 - base * 1.4);
-    y = rng.range(-0.7 + base * 1.4, 0.95 - base * 2.0);
+    // Closer in, round the title, so the beam finds them more often (Amanda, 2026-10-21).
+    x = rng.range(-1.05 + base * 1.4, 1.05 - base * 1.4);
+    y = rng.range(-0.55 + base * 1.4, 0.8 - base * 2.0);
     if (!underTitle(x, y, base) && spots.every((q) => Math.hypot(q[0] - x, q[1] - y) > 0.45)) break;
   }
   if (underTitle(x, y, base)) {
