@@ -742,6 +742,7 @@ function tintLetters(pal) {
 let held = false;
 function holdBeam(on) {
   held = on;
+  say(on ? "beam held in the middle: double tap to let it go" : "beam follows you again");
   if (on) {
     light.wantAz = 0;
     light.wantEl = 1.32;
