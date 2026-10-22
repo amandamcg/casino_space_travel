@@ -457,6 +457,10 @@ void main() {
     // The weave was for the lampshade cloth; a scanned rock has its own grain, and the
     // weave over it read as a mesh (Amanda, 2026-10-07).
     col = uRockN > 0.5 ? own : own * weave(uv * 0.5 + 0.5);
+    // The black keyline round the stone, like the letters' (Amanda, 2026-10-21): the band
+    // where its surface turns edge-on to the eye.
+    float grazing = abs(dot(n, d));
+    col = mix(vec3(0.0), col, smoothstep(0.12, 0.3, grazing));
   }
   if (best > 1e8) {
     float tt = -eye.z / d.z;
@@ -506,7 +510,11 @@ void main() {
         }
       }
       // The plates' shadows darken the field exactly as the stones' do: one shadow term.
-      col = mix(uShadow, col, lit(p) * (1.0 - plateShade)); // shadows in the palette's dark (Amanda, 2026-10-21)
+      float sh = lit(p) * (1.0 - plateShade);
+      col = mix(uShadow, col, sh); // shadows in the palette's dark (Amanda, 2026-10-21)
+      // A black line round the shadow, where lit turns to unlit, like the letters' keyline.
+      float line = smoothstep(0.03, 0.2, sh) * (1.0 - smoothstep(0.2, 0.45, sh));
+      col = mix(col, vec3(0.0), line);
     }
   }
   // Dark at the edges (Amanda, 2026-10-21), and the gamma.
@@ -565,7 +573,11 @@ const tall = window.innerHeight > window.innerWidth; // the canvas is not yet fi
 // The plate under the words, mark, dates and foot together, is wider than they are:
 // no stone may sit under it (Amanda, 2026-10-08). In field units, as it lands on a wide
 // screen and on a tall one, where the field is turned.
-const PLATES = tall ? [{ cx: 0.05, cy: 0, hx: 0.54, hy: 0.52 }] : [{ cx: 0, cy: 0.05, hx: 0.98, hy: 0.62 }];
+// The letters' footprints on the field (the mark, then the dates and the foot), kept
+// clear of stones; tighter than the old plate so the stones sit close (Amanda, 2026-10-21).
+const PLATES = tall
+  ? [{ cx: 0.05, cy: 0.22, hx: 0.3, hy: 0.42 }, { cx: 0.05, cy: -0.3, hx: 0.42, hy: 0.3 }]
+  : [{ cx: 0, cy: 0.33, hx: 0.64, hy: 0.2 }, { cx: 0, cy: -0.15, hx: 0.88, hy: 0.33 }];
 const underTitle = (x, y, base) => PLATES.some((p) => Math.abs(x - p.cx) < p.hx + base && Math.abs(y - p.cy) < p.hy + base);
 const TITLE = PLATES[0];
 for (let i = 0; i < SPOTS; i++) {
@@ -581,10 +593,9 @@ for (let i = 0; i < SPOTS; i++) {
     if (!underTitle(x, y, base) && spots.every((q) => Math.hypot(q[0] - x, q[1] - y) > 0.45)) break;
   }
   if (underTitle(x, y, base)) {
-    // Out from under the title's plate, sideways; a spot that then lands under the
-    // foot's is rare and goes up instead.
-    x = Math.sign(x || 1) * (TITLE.hx + base + 0.05);
-    if (underTitle(x, y, base)) y = 0.95 - base * 2.0;
+    // Out from under the letters: sideways, at a random height, so they do not stack.
+    x = Math.sign(x || 1) * (TITLE.hx + base + 0.05 + rng.range(0, 0.3));
+    y = rng.range(-0.55 + base * 1.4, 0.8 - base * 2.0);
   }
   spots.push([x, y, base * 0.9, base]); // wide, low stones
   looks.push([rng.range(1.6, 2.6), rng.range(-0.6, 0.6), rng.range(-0.6, 0.6), rng.range(1.0, 5.3)]);
@@ -665,7 +676,7 @@ function stepRocks(dt) {
 
 // Where the light comes from: an azimuth and a height, eased toward where the mouse or
 // the phone's tilt says. Straight above by default.
-const light = { az: 0, el: 0.85, wantAz: 0, wantEl: 0.85 };
+const light = { az: 0, el: 1.45, wantAz: 0, wantEl: 1.45 }; // overhead by default: shadows centred (Amanda, 2026-10-21)
 const aim = { x: 0, y: 0.15, wantX: 0, wantY: 0.15 }; // where the flashlight points on the screen
 
 // The letters take their colours from the palette (Amanda, 2026-10-21): the darkest
@@ -701,7 +712,7 @@ function holdBeam(on) {
   held = on;
   if (on) {
     light.wantAz = 0;
-    light.wantEl = 0.85;
+    light.wantEl = 1.45;
     aim.wantX = 0;
     aim.wantY = 0.15;
   }
@@ -711,7 +722,7 @@ function aimLight(x, y) {
   // x, y in -1..1 across the screen: left and right swing the light round, up and down
   // raise and lower it.
   light.wantAz = x * 1.1;
-  light.wantEl = clamp(0.85 - y * 0.5, 0.3, 1.35);
+  light.wantEl = clamp(1.45 - y * 0.7, 0.35, 1.5);
   aim.wantX = x;
   aim.wantY = -y;
 }
