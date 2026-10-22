@@ -51,8 +51,10 @@ export const SCHEMA = [
     note: "How hard a toy spike bends the design in progress." },
   { key: "limitBounce", label: "Limit bounce", min: 0, max: 2, step: 0.05, def: 1,
     note: "Jello wobble of the camera when the toy has used up its mutation budget." },
-  { key: "mashBoost", label: "Mash boost", min: 0, max: 1.5, step: 0.05, def: 0.8,
-    note: "How much mashing the toy's buttons speeds the room up: about six presses in three seconds adds this much liveness." },
+  { key: "band1", label: "Button band: bend / palette", min: 0.1, max: 0.9, step: 0.01, def: 0.35,
+    note: "Toy brightness below this = bend the design; above = new palette. Tune to the real toy's buttons." },
+  { key: "band2", label: "Button band: palette / warp", min: 0.1, max: 0.9, step: 0.01, def: 0.55 },
+  { key: "band3", label: "Button band: warp / warp+palette", min: 0.1, max: 0.95, step: 0.01, def: 0.78 },
   { key: "autoFrame", label: "Auto-frame", min: 0, max: 1, step: 0.05, def: 0.95,
     note: "Camera drifts to keep the fractal centered and sized. 0 = off." },
 
@@ -97,17 +99,29 @@ export const SCHEMA = [
   { key: "famSpiky", label: "Spiky variations", type: "toggle", def: 1 },
   { key: "famGeometric", label: "Geometric variations (tiles, blocks)", type: "toggle", def: 1 },
 
-  { group: "FM-1 (Amanda's synth on AM-2, the sound in the room; the show steers it over USB MIDI)" },
-  { key: "fm1On", label: "Steer the FM-1", min: 0, max: 1, step: 1, def: 1,
-    note: "1 = the toy pushes AM-2's eight AUTO settings over MIDI when an FM-1 is plugged in. 0 = leave the FM-1 alone." },
-  { key: "fm1Push", label: "Toy pushes AUTO", min: 0, max: 1, step: 0.05, def: 0.7,
-    note: "How far a hard-worked wheel pushes the music from AM-2's own settings: faster, wider, more restless, new targets and saves more often. 0 = not at all." },
-  { key: "fm1Follow", label: "Room follows the FM-1", min: 0, max: 1, step: 0.05, def: 0.6,
-    note: "How much the picture answers what AM-2 plays: the pulse lifts the energy, the bells flash the spots and nudge a parameter, the bass rocks the picture, the pad bends the design a little. 0 = the picture ignores the music." },
+  { group: "Sound (woodblocks over a hurdy-gurdy drone)" },
+  { key: "volume", label: "Master volume", min: 0, max: 1, step: 0.05, def: 0.7 },
+  { key: "scale", label: "Scale / mode", type: "select", def: "mixolydian",
+    options: ["mixolydian", "dorian", "major", "aeolian", "pentatonic major", "pentatonic minor", "drone only (root + fifth + octave)"],
+    note: "Modes that ring over a root + fifth drone. Notes are weighted toward root, fifth and octave." },
+  { key: "rootNote", label: "Root note (0=C … 7=G … 11=B)", min: 0, max: 11, step: 1, def: 7 },
+  { key: "tempo", label: "Tempo (BPM)", min: 30, max: 200, step: 1, def: 84 },
+  { key: "density", label: "Hit density", min: 0, max: 2, step: 0.05, def: 0.6,
+    note: "How many of the rhythm's hits actually sound. The fractal's size scales this too." },
+  { key: "maxLayers", label: "Max rhythm layers", min: 1, max: 6, step: 1, def: 4,
+    note: "A small fractal plays one layer; a frame-filling one plays this many." },
+  { key: "pad", label: "Bowed pad level", min: 0, max: 1, step: 0.05, def: 0.35,
+    note: "Long bowed notes swelling under the blocks." },
+  { key: "padMode", label: "Pad pitch", type: "select", def: "432 / 528 Hz window",
+    options: ["432 / 528 Hz window", "follow scale root"],
+    note: "Window: rests on 432 or 528 Hz, wanders between, occasionally bounces outside. Drone strings sit on 432 and 528 too." },
+  { key: "tuning", label: "Block tuning reference", type: "select", def: "A = 432 Hz",
+    options: ["A = 432 Hz", "A = 440 Hz"] },
+  { key: "drone", label: "Drone level", min: 0, max: 1, step: 0.05, def: 0,
+    note: "Constant root + fifth, hurdy-gurdy style. Off by default." },
+  { key: "toyPass", label: "Toy pass-through level", min: 0, max: 1, step: 0.05, def: 0,
+    note: "How much of the toy's own sound comes out of the speaker. Off: the toy only triggers the show and is not heard." },
 ];
-// The browser's own synth (woodblocks over a drone) and the toy pass-through were cut on
-// 2026-10-19: the AM-1 is the only sound in the room. A backup sound is an open item in
-// TODO.md.
 
 export function defaults() {
   const d = {};
@@ -118,6 +132,7 @@ export function defaults() {
 const RANGE_PAIRS = [
   ["morphMin", "morphMax"], ["holdMin", "holdMax"], ["xformsMin", "xformsMax"],
   ["varsMin", "varsMax"], ["scaleMin", "scaleMax"], ["hbMin", "hbMax"],
+  ["band1", "band2"], ["band2", "band3"],
 ];
 
 /** Merge a loaded object onto defaults, dropping anything out of range. */
