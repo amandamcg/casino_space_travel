@@ -811,6 +811,25 @@ window.addEventListener("keydown", (e) => {
     reseed();
   }
 });
+// The arrows play the fractal and its colours (Amanda, 2026-10-22, board #90), the way the
+// toy's buttons do in the show: up warps to a new design in the same colours, down bends
+// the one showing, right swaps the palette, left turns the colours round the palette.
+let lastWarp = -1e9;
+window.addEventListener("keydown", (e) => {
+  if (!animator || !e.key.startsWith("Arrow")) return;
+  e.preventDefault();
+  if (e.key === "ArrowUp") {
+    if (t - lastWarp < 3) return; // one warp at a time
+    lastWarp = t;
+    animator.warp(false);
+  } else if (e.key === "ArrowDown") {
+    animator.kick(0.5);
+  } else if (e.key === "ArrowRight") {
+    animator.swapPalette();
+  } else if (e.key === "ArrowLeft") {
+    animator.paletteShift += 0.12;
+  }
+});
 // A tap is a press that neither moves much nor lasts long: a finger dragged across the
 // page is moving the light, not asking for a new design. Links and buttons keep their
 // own clicks (Amanda, 2026-10-07).
