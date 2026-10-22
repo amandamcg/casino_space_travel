@@ -676,6 +676,7 @@ function stepRocks(dt) {
 // the phone's tilt says. Straight above by default.
 const light = { az: 0, el: 1.32, wantAz: 0, wantEl: 1.32 }; // nearly overhead by default, a little toward the viewer (Amanda, 2026-10-21)
 const aim = { x: 0, y: 0.15, wantX: 0, wantY: 0.15 }; // where the flashlight points on the screen
+const aimSent = { x: NaN, y: NaN };
 
 // Thumbs up and down on the colours showing (Amanda, 2026-10-21): Y keeps the palette,
 // N bins it, into the show's palette store, when this page is opened from the show server
@@ -861,7 +862,7 @@ window.addEventListener("keydown", (e) => {
 // group has the block's own perspective transform, so the steps foreshorten on the field
 // as the stones' shadows do. Offsets in the block's own pixels, moved only for a change
 // one can see.
-const GHOSTS = 40; // enough steps that a long extrusion reads as one solid
+const GHOSTS = 18; // steps of the extrusion: enough to read as solid, few enough for the CPU
 const ghost = document.createElement("div");
 ghost.id = "ghost";
 const ghostCopies = [];
@@ -1077,8 +1078,13 @@ function frame(now) {
   light.el += (light.wantEl - light.el) * k;
   aim.x += (aim.wantX - aim.x) * k;
   aim.y += (aim.wantY - aim.y) * k;
-  document.documentElement.style.setProperty("--aim-x", `${(50 + aim.x * 50).toFixed(1)}%`);
-  document.documentElement.style.setProperty("--aim-y", `${(50 - aim.y * 50).toFixed(1)}%`);
+  // The beam mask on the letters is costly to redraw: move it only when the aim has moved.
+  if (Math.abs(aim.x - aimSent.x) > 0.01 || Math.abs(aim.y - aimSent.y) > 0.01) {
+    aimSent.x = aim.x;
+    aimSent.y = aim.y;
+    document.documentElement.style.setProperty("--aim-x", `${(50 + aim.x * 50).toFixed(1)}%`);
+    document.documentElement.style.setProperty("--aim-y", `${(50 - aim.y * 50).toFixed(1)}%`);
+  }
   const lx = Math.sin(light.az) * Math.cos(light.el);
   const ly = -Math.cos(light.az) * Math.cos(light.el);
   const lz = Math.sin(light.el);
