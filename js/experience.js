@@ -674,7 +674,7 @@ function stepRocks(dt) {
 
 // Where the light comes from: an azimuth and a height, eased toward where the mouse or
 // the phone's tilt says. Straight above by default.
-const light = { az: 0, el: 1.45, wantAz: 0, wantEl: 1.45 }; // overhead by default: shadows centred (Amanda, 2026-10-21)
+const light = { az: 0, el: 1.25, wantAz: 0, wantEl: 1.25 }; // nearly overhead by default, a little toward the viewer (Amanda, 2026-10-21)
 const aim = { x: 0, y: 0.15, wantX: 0, wantY: 0.15 }; // where the flashlight points on the screen
 
 // Thumbs up and down on the colours showing (Amanda, 2026-10-21): Y keeps the palette,
@@ -744,7 +744,7 @@ function holdBeam(on) {
   held = on;
   if (on) {
     light.wantAz = 0;
-    light.wantEl = 1.45;
+    light.wantEl = 1.25;
     aim.wantX = 0;
     aim.wantY = 0.15;
   }
@@ -753,8 +753,10 @@ function aimLight(x, y) {
   if (held) return;
   // x, y in -1..1 across the screen: left and right swing the light round, up and down
   // raise and lower it.
-  light.wantAz = x * 1.1;
-  light.wantEl = clamp(1.45 - y * 0.7, 0.35, 1.5);
+  // Steep near the middle, then quickly exaggerated toward the edges (Amanda, 2026-10-21).
+  const ex = (v) => Math.sign(v) * Math.pow(Math.abs(v), 0.6);
+  light.wantAz = ex(x) * 1.4;
+  light.wantEl = clamp(1.25 - ex(y) * 0.95, 0.3, 1.5);
   aim.wantX = x;
   aim.wantY = -y;
 }
