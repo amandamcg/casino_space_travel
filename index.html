@@ -24,7 +24,7 @@
   #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   /* The foot sits in the title block with the mark and the dates, all on one plate. */
   .foot { margin: 0; padding: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 22px; font: 700 17.2px/1.9 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.21em; opacity: 0.96; color: #000; text-shadow: none; pointer-events: none; }
-  .foot a { color: #000; text-decoration: none; }
+  .foot a { color: #000; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
   .foot span { white-space: nowrap; }
   #hint { position: fixed; left: 0; right: 0; bottom: max(70px, calc(env(safe-area-inset-bottom) + 60px)); text-align: center; pointer-events: none; padding: 0 16px; display: none; }
   #hint.stay { display: block; }
