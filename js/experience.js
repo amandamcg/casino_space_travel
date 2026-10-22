@@ -512,7 +512,7 @@ void main() {
   // Dark at the edges (Amanda, 2026-10-21), and the gamma.
   // The flashlight (Amanda, 2026-10-21): the same light that throws the shadows lights a
   // circle round where it points; past it the field falls to black.
-  float beam = length((a - uAim) * vec2(uRes.x / uRes.y, 1.0));
+  float beam = length(a - uAim * vec2(uRes.x / uRes.y, 1.0)); // a is already in square units, so the circle is round
   col *= 1.0 - 0.97 * smoothstep(0.55, 1.6, beam);
   outColor = vec4(pow(col, vec3(1.0 / 1.1)), 1.0);
 }`;
