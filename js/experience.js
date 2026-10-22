@@ -683,8 +683,9 @@ function tintLetters(pal) {
   }
   const css = (i, k) => `rgb(${Math.round(pal[i] * 255 * k)}, ${Math.round(pal[i + 1] * 255 * k)}, ${Math.round(pal[i + 2] * 255 * k)})`;
   const root = document.documentElement.style;
-  root.setProperty("--letters", css(dark, 0.55)); // deeper than the palette's darkest, so they stay readable
-  root.setProperty("--rim", css(light, 1));
+  // Swapped (Amanda, 2026-10-21): the letters in the palette's lightest colour, the rim in its darkest.
+  root.setProperty("--letters", css(light, 1));
+  root.setProperty("--rim", css(dark, 0.55));
 }
 
 // A double tap holds the beam in the middle of the space; another lets it follow again
