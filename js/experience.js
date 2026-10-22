@@ -116,6 +116,7 @@ uniform float uPlateR[2];     // a plate's corner radius in field units
 uniform float uPlatePx;       // screen pixels per field unit at the plate, for its rim and shadow sizes
 uniform sampler2D uPic;
 uniform vec3 uLight;          // toward the light
+uniform vec2 uAim;            // where the flashlight points, on the screen (-1..1)
 uniform vec4 uSpot[N];        // x, y, height above the field, radius
 uniform vec4 uLook[N];        // zoom, pan x, pan y, hue turn (radians)
 uniform float uTime;
@@ -501,7 +502,10 @@ void main() {
     }
   }
   // Dark at the edges (Amanda, 2026-10-21), and the gamma.
-  col *= 1.0 - 0.97 * smoothstep(0.1, 1.25, length(a)); // a long fall to black at the edges
+  // The flashlight (Amanda, 2026-10-21): the same light that throws the shadows lights a
+  // circle round where it points; past it the field falls to black.
+  float beam = length((a - uAim) * vec2(uRes.x / uRes.y, 1.0));
+  col *= 1.0 - 0.97 * smoothstep(0.55, 1.6, beam);
   outColor = vec4(pow(col, vec3(1.0 / 1.1)), 1.0);
 }`;
 
@@ -653,12 +657,15 @@ function stepRocks(dt) {
 // Where the light comes from: an azimuth and a height, eased toward where the mouse or
 // the phone's tilt says. Straight above by default.
 const light = { az: 0, el: 0.85, wantAz: 0, wantEl: 0.85 };
+const aim = { x: 0, y: 0.15, wantX: 0, wantY: 0.15 }; // where the flashlight points on the screen
 
 function aimLight(x, y) {
   // x, y in -1..1 across the screen: left and right swing the light round, up and down
   // raise and lower it.
   light.wantAz = x * 1.1;
   light.wantEl = clamp(0.85 - y * 0.5, 0.3, 1.35);
+  aim.wantX = x;
+  aim.wantY = -y;
 }
 
 window.addEventListener("pointermove", (e) => {
@@ -776,6 +783,11 @@ function castTextShadow(lx, ly, lz) {
   if (Math.abs(dx - shadow.x) < 0.5 && Math.abs(dy - shadow.y) < 0.5) return;
   shadow.x = dx;
   shadow.y = dy;
+  // The letters are lit from the light's side (Amanda, 2026-10-21): a thin lit rim on that
+  // side, and the whole block only where the beam falls.
+  const n = Math.hypot(dx, dy) || 1;
+  document.documentElement.style.setProperty("--rim-x", `${(-dx / n * 1.2).toFixed(2)}px`);
+  document.documentElement.style.setProperty("--rim-y", `${(-dy / n * 1.2).toFixed(2)}px`);
   ghostCopies.forEach((copy, k) => {
     const f = (k + 1) / GHOSTS;
     copy.style.setProperty("--gx", `${(dx * f).toFixed(1)}px`);
@@ -955,6 +967,10 @@ function frame(now) {
   const k = 1 - Math.exp(-dt / 0.25);
   light.az += (light.wantAz - light.az) * k;
   light.el += (light.wantEl - light.el) * k;
+  aim.x += (aim.wantX - aim.x) * k;
+  aim.y += (aim.wantY - aim.y) * k;
+  document.documentElement.style.setProperty("--aim-x", `${(50 + aim.x * 50).toFixed(1)}%`);
+  document.documentElement.style.setProperty("--aim-y", `${(50 - aim.y * 50).toFixed(1)}%`);
   const lx = Math.sin(light.az) * Math.cos(light.el);
   const ly = -Math.cos(light.az) * Math.cos(light.el);
   const lz = Math.sin(light.el);
@@ -975,6 +991,7 @@ function frame(now) {
   gl.uniform1fv(u("uPlateR"), [plate.radius, 0]);
   gl.uniform1f(u("uPlatePx"), plate.ppu * (view.width / window.innerWidth));
   gl.uniform3f(u("uLight"), lx, ly, lz);
+  gl.uniform2f(u("uAim"), aim.x, aim.y);
   // On a tall screen the stones turn with the field: (x, y) on the wide field becomes (-y, x).
   gl.uniform4fv(u("uSpot"), spots.flatMap((q) => (portrait ? [-q[1], q[0], q[2], q[3]] : q)));
   gl.uniform4fv(u("uLook"), looks.flat());

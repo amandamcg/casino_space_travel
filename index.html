@@ -50,7 +50,16 @@
      sets the variables each frame), over a close dark halo that keeps the white letters
      readable on any field (Amanda, 2026-10-07). The mark is a mask, so its shadows are
      filters. */
-  :root { --shadow-x: 0em; --shadow-y: -0.4em; --shadow-blur: 0.6em; }
+  :root { --shadow-x: 0em; --shadow-y: -0.4em; --shadow-blur: 0.6em; --aim-x: 50%; --aim-y: 42%; --rim-x: 0px; --rim-y: -1px; }
+  /* The flashlight (Amanda, 2026-10-21): the letters and their shadow show only where the
+     beam falls, the same circle the page lights on the field. */
+  #title, #ghost { -webkit-mask-image: radial-gradient(circle at var(--aim-x) var(--aim-y), #000 0, #000 34vmax, transparent 85vmax); mask-image: radial-gradient(circle at var(--aim-x) var(--aim-y), #000 0, #000 34vmax, transparent 85vmax); }
+  /* Lit from the light's side: a thin pale rim on the mark and the words, toward the light. */
+  .mark { position: relative; }
+  .mark::after { content: ""; position: absolute; inset: 0; background: #efe3c6; opacity: 0.9; z-index: -1; transform: translate(var(--rim-x), var(--rim-y));
+    -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
+  #title .dates, #title .foot { text-shadow: var(--rim-x) var(--rim-y) 0 #efe3c6; }
+  .ghost-copy .mark::after { display: none; }
   /* The mask sits on an inner layer: a mask is applied after a filter, so on the same
      element it would cut the shadow away with everything else outside the letters. */
   .mark { width: min(686px, 90vw); aspect-ratio: 1256 / 358; font-size: 16px;
