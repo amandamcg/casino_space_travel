@@ -665,7 +665,20 @@ function stepRocks(dt) {
 const light = { az: 0, el: 0.85, wantAz: 0, wantEl: 0.85 };
 const aim = { x: 0, y: 0.15, wantX: 0, wantY: 0.15 }; // where the flashlight points on the screen
 
+// A double tap holds the beam in the middle of the space; another lets it follow again
+// (Amanda, 2026-10-21).
+let held = false;
+function holdBeam(on) {
+  held = on;
+  if (on) {
+    light.wantAz = 0;
+    light.wantEl = 0.85;
+    aim.wantX = 0;
+    aim.wantY = 0.15;
+  }
+}
 function aimLight(x, y) {
+  if (held) return;
   // x, y in -1..1 across the screen: left and right swing the light round, up and down
   // raise and lower it.
   light.wantAz = x * 1.1;
@@ -724,6 +737,7 @@ window.addEventListener("keydown", (e) => {
 // page is moving the light, not asking for a new design. Links and buttons keep their
 // own clicks (Amanda, 2026-10-07).
 let press = null;
+let tapTimer = 0; // a tap reseeds after a moment, unless a second tap makes it a double
 const onControl = (e) => e.target instanceof Element && e.target.closest("a, button");
 window.addEventListener("pointerdown", (e) => {
   if (onControl(e)) return;
@@ -732,9 +746,20 @@ window.addEventListener("pointerdown", (e) => {
 window.addEventListener("pointerup", (e) => {
   if (!press || onControl(e)) return;
   const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
-  const held = performance.now() - press.at;
+  const lasted = performance.now() - press.at;
   press = null;
-  if (moved < 12 && held < 400) reseed();
+  if (moved < 12 && lasted < 400) {
+    if (tapTimer) {
+      clearTimeout(tapTimer);
+      tapTimer = 0;
+      holdBeam(!held);
+    } else {
+      tapTimer = setTimeout(() => {
+        tapTimer = 0;
+        reseed();
+      }, 320);
+    }
+  }
 });
 window.addEventListener("pointercancel", () => {
   press = null;
