@@ -56,9 +56,9 @@
   #title, #ghost { -webkit-mask-image: radial-gradient(circle at var(--aim-x) var(--aim-y), #000 0, #000 34vmax, transparent 85vmax); mask-image: radial-gradient(circle at var(--aim-x) var(--aim-y), #000 0, #000 34vmax, transparent 85vmax); }
   /* Lit from the light's side: a thin pale rim on the mark and the words, toward the light. */
   .mark { position: relative; }
-  .mark::after { content: ""; position: absolute; inset: 0; background: #efe3c6; opacity: 0.9; z-index: -1; transform: translate(var(--rim-x), var(--rim-y));
+  .mark::after { content: ""; position: absolute; inset: 0; background: #fff6dc; opacity: 1; z-index: -1; transform: translate(var(--rim-x), var(--rim-y));
     -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
-  #title .dates, #title .foot { text-shadow: var(--rim-x) var(--rim-y) 0 #efe3c6; }
+  #title .dates, #title .foot { text-shadow: calc(var(--rim-x) * 0.5) calc(var(--rim-y) * 0.5) 0 #fff6dc, calc(var(--rim-x) * 0.25) calc(var(--rim-y) * 0.25) 0 #fff6dc; }
   .ghost-copy .mark::after { display: none; }
   /* The mask sits on an inner layer: a mask is applied after a filter, so on the same
      element it would cut the shadow away with everything else outside the letters. */

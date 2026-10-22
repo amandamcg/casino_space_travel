@@ -792,8 +792,8 @@ function castTextShadow(lx, ly, lz) {
   // The letters are lit from the light's side (Amanda, 2026-10-21): a thin lit rim on that
   // side, and the whole block only where the beam falls.
   const n = Math.hypot(dx, dy) || 1;
-  document.documentElement.style.setProperty("--rim-x", `${(-dx / n * 1.2).toFixed(2)}px`);
-  document.documentElement.style.setProperty("--rim-y", `${(-dy / n * 1.2).toFixed(2)}px`);
+  document.documentElement.style.setProperty("--rim-x", `${(-dx / n * 3).toFixed(2)}px`);
+  document.documentElement.style.setProperty("--rim-y", `${(-dy / n * 3).toFixed(2)}px`);
   ghostCopies.forEach((copy, k) => {
     const f = (k + 1) / GHOSTS;
     copy.style.setProperty("--gx", `${(dx * f).toFixed(1)}px`);
