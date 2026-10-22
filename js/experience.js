@@ -674,7 +674,7 @@ function stepRocks(dt) {
 
 // Where the light comes from: an azimuth and a height, eased toward where the mouse or
 // the phone's tilt says. Straight above by default.
-const light = { az: 0, el: 1.1, wantAz: 0, wantEl: 1.1 }; // nearly overhead by default, a little toward the viewer (Amanda, 2026-10-21)
+const light = { az: 0, el: 1.32, wantAz: 0, wantEl: 1.32 }; // nearly overhead by default, a little toward the viewer (Amanda, 2026-10-21)
 const aim = { x: 0, y: 0.15, wantX: 0, wantY: 0.15 }; // where the flashlight points on the screen
 
 // Thumbs up and down on the colours showing (Amanda, 2026-10-21): Y keeps the palette,
@@ -744,7 +744,7 @@ function holdBeam(on) {
   held = on;
   if (on) {
     light.wantAz = 0;
-    light.wantEl = 1.1;
+    light.wantEl = 1.32;
     aim.wantX = 0;
     aim.wantY = 0.15;
   }
@@ -756,7 +756,9 @@ function aimLight(x, y) {
   // Steep near the middle, then quickly exaggerated toward the edges (Amanda, 2026-10-21).
   const ex = (v) => Math.sign(v) * Math.pow(Math.abs(v), 0.45);
   light.wantAz = ex(x) * 1.7;
-  light.wantEl = clamp(1.1 - ex(y) * 1.1, 0.22, 1.5);
+  // Both ways from the middle: down brings the light low on this side, up carries it
+  // past overhead and low on the far side, so the shadows swing either way.
+  light.wantEl = clamp(1.32 - ex(y) * 1.25, 0.2, Math.PI - 0.2);
   aim.wantX = x;
   aim.wantY = -y;
 }
@@ -858,7 +860,7 @@ window.addEventListener("keydown", (e) => {
 // group has the block's own perspective transform, so the steps foreshorten on the field
 // as the stones' shadows do. Offsets in the block's own pixels, moved only for a change
 // one can see.
-const GHOSTS = 10;
+const GHOSTS = 40; // enough steps that a long extrusion reads as one solid
 const ghost = document.createElement("div");
 ghost.id = "ghost";
 const ghostCopies = [];

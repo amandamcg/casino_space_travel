@@ -39,7 +39,7 @@
      stones' shadow darkness, behind the words. */
   /* Soft-edged like the stones' shadows, which come from three lights a little apart; a
      touch lighter than theirs (Amanda, 2026-10-08). */
-  #ghost { position: fixed; left: 0; top: 0; opacity: 1; filter: none; pointer-events: none; transform-origin: 0 0; z-index: 0; }
+  #ghost { position: fixed; left: 0; top: 0; opacity: 1; filter: drop-shadow(1.5px 0 0 #000) drop-shadow(-1.5px 0 0 #000) drop-shadow(0 1.5px 0 #000) drop-shadow(0 -1.5px 0 #000); pointer-events: none; transform-origin: 0 0; z-index: 0; }
   .ghost-copy { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; transform: none !important; pointer-events: none; }
   /* The mark stands tallest; the small type stands a third as high, or its shadow would
      be longer than its letters and smear them. */
@@ -47,6 +47,10 @@
   .ghost-copy .dates, .ghost-copy .foot { transform: translate(calc(var(--gx, 0px) * 0.3), calc(var(--gy, 0px) * 0.3)); }
   /* The extrusion, like a 3-D logo: solid faces in the palette's dark colour, each with the
      same black keyline as the front (Amanda, 2026-10-21, the MTV mark). */
+  /* One keyline round the whole extrusion (the filter on #ghost), none on each step, or
+     the steps show as stripes. */
+  .ghost-copy .mark { filter: none; }
+  .ghost-copy .dates, .ghost-copy .foot { -webkit-text-stroke: 0; }
   .ghost-copy .mark::before { background: var(--rim); opacity: 1; }
   .ghost-copy .dates, .ghost-copy .foot, .ghost-copy a { color: var(--rim); opacity: 1; text-decoration-color: var(--rim); }
   .foot a { pointer-events: auto; }
