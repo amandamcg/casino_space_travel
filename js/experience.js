@@ -75,6 +75,7 @@ let t = 0;
 
 function drawFlame(dt) {
   const genome = animator.update(dt, 0, 0.5);
+  tintLetters(genome.palette);
   const gc = genome.camera;
   cam.cx = gc.cx;
   cam.cy = gc.cy;
@@ -665,6 +666,27 @@ function stepRocks(dt) {
 const light = { az: 0, el: 0.85, wantAz: 0, wantEl: 0.85 };
 const aim = { x: 0, y: 0.15, wantX: 0, wantY: 0.15 }; // where the flashlight points on the screen
 
+// The letters take their colours from the palette (Amanda, 2026-10-21): the darkest
+// entry for the letters, the lightest for the lit rim. Read a few times a second.
+let tintAt = 0;
+function tintLetters(pal) {
+  if (!pal || performance.now() - tintAt < 250) return;
+  tintAt = performance.now();
+  let dark = 0;
+  let light = 0;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = 0; i < pal.length; i += 3) {
+    const l = pal[i] * 0.299 + pal[i + 1] * 0.587 + pal[i + 2] * 0.114;
+    if (l < lo) { lo = l; dark = i; }
+    if (l > hi) { hi = l; light = i; }
+  }
+  const css = (i, k) => `rgb(${Math.round(pal[i] * 255 * k)}, ${Math.round(pal[i + 1] * 255 * k)}, ${Math.round(pal[i + 2] * 255 * k)})`;
+  const root = document.documentElement.style;
+  root.setProperty("--letters", css(dark, 0.55)); // deeper than the palette's darkest, so they stay readable
+  root.setProperty("--rim", css(light, 1));
+}
+
 // A double tap holds the beam in the middle of the space; another lets it follow again
 // (Amanda, 2026-10-21).
 let held = false;
@@ -817,8 +839,8 @@ function castTextShadow(lx, ly, lz) {
   // The letters are lit from the light's side (Amanda, 2026-10-21): a thin lit rim on that
   // side, and the whole block only where the beam falls.
   const n = Math.hypot(dx, dy) || 1;
-  document.documentElement.style.setProperty("--rim-x", `${(-dx / n * 3).toFixed(2)}px`);
-  document.documentElement.style.setProperty("--rim-y", `${(-dy / n * 3).toFixed(2)}px`);
+  document.documentElement.style.setProperty("--rim-x", `${(-dx / n * 5).toFixed(2)}px`);
+  document.documentElement.style.setProperty("--rim-y", `${(-dy / n * 5).toFixed(2)}px`);
   ghostCopies.forEach((copy, k) => {
     const f = (k + 1) / GHOSTS;
     copy.style.setProperty("--gx", `${(dx * f).toFixed(1)}px`);

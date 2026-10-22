@@ -50,21 +50,22 @@
      sets the variables each frame), over a close dark halo that keeps the white letters
      readable on any field (Amanda, 2026-10-07). The mark is a mask, so its shadows are
      filters. */
-  :root { --shadow-x: 0em; --shadow-y: -0.4em; --shadow-blur: 0.6em; --aim-x: 50%; --aim-y: 42%; --rim-x: 0px; --rim-y: -1px; }
+  :root { --shadow-x: 0em; --shadow-y: -0.4em; --shadow-blur: 0.6em; --aim-x: 50%; --aim-y: 42%; --rim-x: 0px; --rim-y: -1px; --letters: #000; --rim: #fff6dc; }
   /* The flashlight (Amanda, 2026-10-21): the letters and their shadow show only where the
      beam falls, the same circle the page lights on the field. */
   #title, #ghost { -webkit-mask-image: radial-gradient(circle at var(--aim-x) var(--aim-y), #000 0, #000 34vmax, transparent 85vmax); mask-image: radial-gradient(circle at var(--aim-x) var(--aim-y), #000 0, #000 34vmax, transparent 85vmax); }
   /* Lit from the light's side: a thin pale rim on the mark and the words, toward the light. */
   .mark { position: relative; }
-  .mark::after { content: ""; position: absolute; inset: 0; background: #fff6dc; opacity: 1; z-index: -1; transform: translate(var(--rim-x), var(--rim-y));
+  .mark::after { content: ""; position: absolute; inset: 0; background: var(--rim); opacity: 1; z-index: -1; transform: translate(var(--rim-x), var(--rim-y));
     -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
-  #title .dates, #title .foot { text-shadow: calc(var(--rim-x) * 0.5) calc(var(--rim-y) * 0.5) 0 #fff6dc, calc(var(--rim-x) * 0.25) calc(var(--rim-y) * 0.25) 0 #fff6dc; }
+  #title .dates, #title .foot { color: var(--letters); text-shadow: calc(var(--rim-x) * 0.5) calc(var(--rim-y) * 0.5) 0 var(--rim), calc(var(--rim-x) * 0.25) calc(var(--rim-y) * 0.25) 0 var(--rim); }
+  #title .foot a { color: var(--letters); }
   .ghost-copy .mark::after { display: none; }
   /* The mask sits on an inner layer: a mask is applied after a filter, so on the same
      element it would cut the shadow away with everything else outside the letters. */
   .mark { width: min(686px, 90vw); aspect-ratio: 1256 / 358; font-size: 16px;
     filter: none; }
-  .mark::before { content: ""; display: block; width: 100%; height: 100%; background: #000; opacity: 0.96;
+  .mark::before { content: ""; display: block; width: 100%; height: 100%; background: var(--letters); opacity: 0.96;
     -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
   /* The dates: one paragraph each, lines tight within an entry, a clear gap between
      entries. On a desktop 13px on one line each; on a phone at least 12pt (16px),
@@ -89,11 +90,11 @@
 <div id="title">
   <div class="mark" role="img" aria-label="Casino Space Travel"></div>
   <div class="dates">
-    <p>nov 7 at 7pm - experimental sounds / puppet show @ beatnik</p>
-    <p>dec 12 to jan 3 weekends - interactive exhibit with <a href="http://feralgirlcollective.net/" target="_blank" rel="noopener">ferals</a> @ <a href="https://lamatadoragallery.org/" target="_blank" rel="noopener">la mat</a></p>
-    <p>jan 1 at tbd time - sound bath @ <a href="https://lamatadoragallery.org/" target="_blank" rel="noopener">la mat</a></p>
+    <p>nov 7 at 7pm - puppets @ beatnik</p>
+    <p>dec 12-jan 3 - immersive w/ <a href="http://feralgirlcollective.net/" target="_blank" rel="noopener">ferals</a> @ <a href="https://lamatadoragallery.org/" target="_blank" rel="noopener">la mat</a></p>
+    <p>jan 1 - sound bath @ <a href="https://lamatadoragallery.org/" target="_blank" rel="noopener">la mat</a></p>
   </div>
-  <p class="foot"><span><a href="https://casinospacetravel.bandcamp.com/" target="_blank" rel="noopener">bandcamp</a> • <a href="mailto:casinospacetravelmusic@protonmail.com">email</a></span></p>
+  <p class="foot"><span><a href="https://casinospacetravel.bandcamp.com/" target="_blank" rel="noopener">bandcamp</a> • <a href="mailto:casinospacetravelmusic@protonmail.com?subject=hello&amp;body=send%20updates%20please">keep in touch</a></span></p>
 </div>
 <p id="hint"></p>
 <button id="enable" hidden>Tap to let the page use your phone's tilt</button>
