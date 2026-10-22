@@ -585,17 +585,14 @@ for (let i = 0; i < SPOTS; i++) {
   const base = rng.range(0.12, 0.2); // the outline reaches 0.7 to 0.95 of this; small, so they are seen whole (Amanda, 2026-10-21)
   let x = 0;
   let y = 0;
-  for (let tries = 0; tries < 80; tries++) {
-    // Inside the screen by a stone's width, so no stone is cut off at an edge (Amanda, 2026-10-21).
-    // Closer in, round the title, so the beam finds them more often (Amanda, 2026-10-21).
-    x = rng.range(-1.05 + base * 1.4, 1.05 - base * 1.4);
-    y = rng.range(-0.55 + base * 1.4, 0.8 - base * 2.0);
-    if (!underTitle(x, y, base) && spots.every((q) => Math.hypot(q[0] - x, q[1] - y) > 0.45)) break;
-  }
-  if (underTitle(x, y, base)) {
-    // Out from under the letters: sideways, at a random height, so they do not stack.
-    x = Math.sign(x || 1) * (TITLE.hx + base + 0.05 + rng.range(0, 0.3));
-    y = rng.range(-0.55 + base * 1.4, 0.8 - base * 2.0);
+  // Close round the letters, on clear ground: many tries, widening the ring a little
+  // each time it fails (Amanda, 2026-10-21: close, whole, never stacked).
+  let ok = false;
+  for (let tries = 0; tries < 240 && !ok; tries++) {
+    const spread = 1 + tries / 240;
+    x = rng.range(-1.05 * spread + base * 1.4, 1.05 * spread - base * 1.4);
+    y = rng.range(-0.55 * spread + base * 1.4, 0.8 - base * 2.0);
+    ok = !underTitle(x, y, base) && spots.every((q) => Math.hypot(q[0] - x, q[1] - y) > base + q[3] + 0.12);
   }
   spots.push([x, y, base * 0.9, base]); // wide, low stones
   looks.push([rng.range(1.6, 2.6), rng.range(-0.6, 0.6), rng.range(-0.6, 0.6), rng.range(1.0, 5.3)]);
