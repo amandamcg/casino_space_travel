@@ -497,11 +497,11 @@ void main() {
         }
       }
       // The plates' shadows darken the field exactly as the stones' do: one shadow term.
-      col *= 0.25 + 0.75 * lit(p) * (1.0 - plateShade);
+      col *= lit(p) * (1.0 - plateShade); // shadows full black (Amanda, 2026-10-21)
     }
   }
-  // A faint vignette, and the gamma.
-  col *= 1.0 - 0.35 * dot(a * 0.5, a * 0.5);
+  // Dark at the edges (Amanda, 2026-10-21), and the gamma.
+  col *= 1.0 - 0.97 * smoothstep(0.1, 1.25, length(a)); // a long fall to black at the edges
   outColor = vec4(pow(col, vec3(1.0 / 1.1)), 1.0);
 }`;
 
@@ -558,19 +558,20 @@ const underTitle = (x, y, base) => PLATES.some((p) => Math.abs(x - p.cx) < p.hx 
 const TITLE = PLATES[0];
 for (let i = 0; i < SPOTS; i++) {
   // Anywhere on the screen, not on top of another, not under the title.
-  const base = rng.range(0.19, 0.3); // the outline reaches 0.7 to 0.95 of this
+  const base = rng.range(0.12, 0.2); // the outline reaches 0.7 to 0.95 of this; small, so they are seen whole (Amanda, 2026-10-21)
   let x = 0;
   let y = 0;
   for (let tries = 0; tries < 80; tries++) {
-    x = rng.range(-1.45, 1.45);
-    y = rng.range(-0.7, 0.95);
-    if (!underTitle(x, y, base) && spots.every((q) => Math.hypot(q[0] - x, q[1] - y) > 0.62)) break;
+    // Inside the screen by a stone's width, so no stone is cut off at an edge (Amanda, 2026-10-21).
+    x = rng.range(-1.45 + base * 1.4, 1.45 - base * 1.4);
+    y = rng.range(-0.7 + base * 1.4, 0.95 - base * 2.0);
+    if (!underTitle(x, y, base) && spots.every((q) => Math.hypot(q[0] - x, q[1] - y) > 0.45)) break;
   }
   if (underTitle(x, y, base)) {
     // Out from under the title's plate, sideways; a spot that then lands under the
     // foot's is rare and goes up instead.
     x = Math.sign(x || 1) * (TITLE.hx + base + 0.05);
-    if (underTitle(x, y, base)) y = 0.9;
+    if (underTitle(x, y, base)) y = 0.95 - base * 2.0;
   }
   spots.push([x, y, base * 0.9, base]); // wide, low stones
   looks.push([rng.range(1.6, 2.6), rng.range(-0.6, 0.6), rng.range(-0.6, 0.6), rng.range(1.0, 5.3)]);
