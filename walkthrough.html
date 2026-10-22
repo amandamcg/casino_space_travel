@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casino Space Travel</title>
+<meta name="description" content="A walk through the room: the show live on the walls, rocks, mirrors and the wheel. Keys or a finger walk you about.">
+<!-- The modules the page imports, fetched at once rather than one hop after another, and
+     the files it reads at the start (the experience page does the same; Amanda,
+     2026-10-08: "a delay on load"). -->
+<link rel="modulepreload" href="js/walkthrough.js">
+<link rel="modulepreload" href="js/composer/scene.js">
+<link rel="modulepreload" href="js/composer/tracer.js">
+<link rel="modulepreload" href="js/composer/cables.js">
+<link rel="modulepreload" href="js/mapping.js">
+<link rel="modulepreload" href="js/setlooks.js">
+<link rel="modulepreload" href="js/genome.js">
+<link rel="modulepreload" href="js/flame.js">
+<link rel="modulepreload" href="js/palettes.js">
+<link rel="modulepreload" href="js/rng.js">
+<link rel="modulepreload" href="js/settings.js">
+<link rel="preload" href="js/room.json" as="fetch" crossorigin="anonymous">
+<link rel="preload" href="js/liked-palettes.json" as="fetch" crossorigin="anonymous">
+<link rel="preload" href="img/rocks/shapes.json" as="fetch" crossorigin="anonymous">
+<style>
+  /* ABC Areal Mono by Dinamo, under Amanda's licence; the public copy of the site does not
+     carry the font files (see the site's fonts/README), so the system monospace stands in. */
+  @font-face { font-family: "ABC Areal Mono"; src: url(fonts/ABCArealMono-Regular.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "ABC Areal Mono"; src: url(fonts/ABCArealMono-Bold.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: #cfd4dc; font: 14px/1.4 "ABC Areal Mono", ui-monospace, Menlo, monospace; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  /* What the hand can do, top left, gone after a few seconds (h brings it back). */
+  #hud { position: fixed; left: max(12px, env(safe-area-inset-left)); top: max(10px, env(safe-area-inset-top)); z-index: 30; max-width: 60ch; color: #dfe3ea; background: rgba(0, 0, 0, 0.5); padding: 6px 10px; border-radius: 4px; pointer-events: none; margin: 0; }
+  /* The title block from the site: the hand-lettered mark, the dates, the links. Over the
+     picture while it loads and over black at the curtains; i, or the small mark at the
+     bottom right, brings it back over the room. */
+  #title { position: fixed; left: 50%; top: 50%; width: fit-content; max-width: 100%; transform: translate(-50%, -58%); display: flex; flex-direction: column; align-items: center; gap: clamp(32px, 7vw, 70px); pointer-events: none; padding: 0 16px; z-index: 10; box-sizing: border-box; opacity: 0; transition: opacity 0.8s; }
+  #title.stay { opacity: 1; }
+  .mark { width: min(686px, 90vw); aspect-ratio: 1256 / 358; }
+  .mark::before { content: ""; display: block; width: 100%; height: 100%; background: #ff2a96; opacity: 0.92; -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
+  .dates { margin: 0; text-align: center; color: #fff; opacity: 0.9; font: 700 17.2px/1.35 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.21em; text-transform: lowercase; white-space: nowrap; text-shadow: 0 0 12px #000, 0 0 3px #000; }
+  .dates p { margin: 0; }
+  .dates p + p { margin-top: 0.6em; }
+  .dates a, .foot a { color: inherit; pointer-events: auto; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; text-decoration-color: rgba(255, 255, 255, 0.55); }
+  .foot { margin: 0; padding: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 22px; font: 700 17.2px/1.9 "ABC Areal Mono", ui-monospace, Menlo, "SF Mono", Consolas, monospace; letter-spacing: 0.21em; opacity: 0.9; color: #fff; text-shadow: 0 0 12px #000, 0 0 3px #000; }
+  .foot a { text-decoration: none; }
+  @media (max-width: 760px) {
+    #title { padding: 0 4px; width: 100vw; }
+    .dates { font-size: 19px; letter-spacing: 0; white-space: normal; text-wrap: balance; max-width: 96vw; }
+    .foot { font-size: 19px; letter-spacing: 0.024em; }
+  }
+  /* Where WebGL2 is missing: the words, and the title stays. */
+  #fallback { position: fixed; left: 0; right: 0; bottom: max(70px, calc(env(safe-area-inset-bottom) + 60px)); text-align: center; padding: 0 16px; margin: 0; color: #eef; z-index: 20; }
+  /* The pad for a thumb (phones) and the buttons at the bottom right. */
+  #pad { position: fixed; left: max(20px, env(safe-area-inset-left)); bottom: max(20px, env(safe-area-inset-bottom)); width: 120px; height: 120px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.35); touch-action: none; z-index: 25; --kx: 0px; --ky: 0px; }
+  #pad::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; border-radius: 50%; background: rgba(255, 255, 255, 0.45); transform: translate(calc(-50% + var(--kx)), calc(-50% + var(--ky))); }
+  .buttons { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); display: flex; gap: 8px; z-index: 25; align-items: center; }
+  .buttons button { font: inherit; background: rgba(20, 22, 26, 0.75); color: #eef; border: 1px solid #3c4352; padding: 10px 14px; border-radius: 4px; cursor: pointer; }
+  .buttons button:hover { border-color: #8b93a3; }
+  #mark-button { width: 48px; height: 22px; padding: 0; background: none; border: none; opacity: 0.7; }
+  #mark-button::before { content: ""; display: block; width: 100%; height: 100%; background: #ff2a96; -webkit-mask: url(img/casino-space-travel.svg) no-repeat center / contain; mask: url(img/casino-space-travel.svg) no-repeat center / contain; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="view" aria-label="The room, as a visitor sees it"></canvas>
+<p id="hud" hidden></p>
+<div id="title" class="stay">
+  <div class="mark" role="img" aria-label="Casino Space Travel"></div>
+  <div class="dates">
+    <p>nov 7 at 7pm - experimental sounds / puppet show @ beatnik</p>
+    <p>dec 12 to jan 3 weekends - interactive exhibit with <a href="http://feralgirlcollective.net/" target="_blank" rel="noopener">ferals</a> @ <a href="https://lamatadoragallery.org/" target="_blank" rel="noopener">la mat</a></p>
+    <p>jan 1 at tbd time - sound bath @ <a href="https://lamatadoragallery.org/" target="_blank" rel="noopener">la mat</a></p>
+  </div>
+  <p class="foot"><span><a href="https://casinospacetravel.bandcamp.com/" target="_blank" rel="noopener">bandcamp</a> • <a href="mailto:casinospacetravelmusic@protonmail.com">email</a></span></p>
+</div>
+<p id="fallback" hidden></p>
+<div id="pad" hidden aria-label="Walk: drag the thumb"></div>
+<div class="buttons">
+  <button id="spin" type="button" title="Give the wheel a spin: the show answers">wheel</button>
+  <button id="replay" type="button" hidden title="Play the walk through the room again (p)">walk</button>
+  <button id="mark-button" type="button" title="The dates and the links (i)" aria-label="Show the title"></button>
+</div>
+<script type="module" src="js/walkthrough.js"></script>
+</body>
+</html>
